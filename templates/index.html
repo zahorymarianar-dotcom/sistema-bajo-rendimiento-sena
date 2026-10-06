@@ -1,1 +1,40 @@
+{% extends 'base.html' %}
 
+{% block content %}
+<div class="row align-items-center my-5">
+    <div class="col-md-7">
+        <h1 class="display-4 fw-bold text-primary">Sistema de Control del Bajo Rendimiento Académico</h1>
+        <p class="lead text-secondary">
+            Herramienta analítica diseñada para la identificación, monitoreo y seguimiento preventivo de factores de riesgo que afectan el desempeño escolar de los estudiantes.
+        </p>
+        <div class="mt-4">
+            <a href="/registro" class="btn btn-primary btn-lg me-2">Registrar Diagnóstico</a>
+            <a href="/login" class="btn btn-outline-secondary btn-lg">Acceso Docentes</a>
+        </div>
+    </div>
+    <div class="col-md-5 text-center mt-4 mt-md-0">
+        <div class="card shadow border-0 p-4 bg-white">
+            <h4 class="fw-bold text-dark">Indicadores Clave</h4>
+            <hr>
+            <div class="row text-center">
+                <div class="col-6 mb-3">
+                    <h3 class="text-danger fw-bold">71.6%</h3>
+                    <small class="text-muted">Estudiantes con bajo rendimiento</small>
+                </div>
+                <div class="col-6 mb-3">
+                    <h3 class="text-warning fw-bold">2.15</h3>
+                    <small class="text-muted">Promedio de materias perdidas</small>
+                </div>
+                <div class="col-6">
+                    <h3 class="text-info fw-bold">77.6%</h3>
+                    <small class="text-muted">Impacto Metodológico</small>
+                </div>
+                <div class="col-6">
+                    <h3 class="text-primary fw-bold">61.2%</h3>
+                    <small class="text-muted">Factores Emocionales</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

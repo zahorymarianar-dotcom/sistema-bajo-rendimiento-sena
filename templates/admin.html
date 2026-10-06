@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div style="background-color: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <h2 style="color: #39A900; margin-bottom: 5px;">Panel de Diagnóstico y Estadísticas - SENA</h2>
+    <p style="color: #666; margin-bottom: 20px;">Control de bajo rendimiento académico (GAES 5)</p>
+
+    <div style="background-color: #e8f5e9; padding: 15px; border-radius: 5px; border-left: 5px solid #39A900; margin-bottom: 25px;">
+        <h4 style="margin: 0; color: #2e7d32;">Total de encuestas registradas: <strong>{{ total }}</strong></h4>
+    </div>
+
+    <div style="margin-bottom: 35px; padding: 15px; border: 1px solid #eee; border-radius: 8px;">
+        <h3 style="color: #333; text-align: center; margin-bottom: 15px;">Diagnóstico de Bajo Rendimiento Académico</h3>
+        <div style="max-width: 650px; margin: 0 auto;">
+            <canvas id="graficaBarras"></canvas>
+        </div>
+    </div>
+
+    <h3 style="color: #333; margin-bottom: 15px;">Detalle de Respuestas</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background-color: #39A900; color: white; text-align: left;">
+                <th style="padding: 10px; border: 1px solid #ddd;">ID</th>
+                <th style="padding: 10px; border: 1px solid #ddd;">Nombre</th>
+                <th style="padding: 10px; border: 1px solid #ddd;">Documento</th>
+                <th style="padding: 10px; border: 1px solid #ddd;">Ficha</th>
+                <th style="padding: 10px; border: 1px solid #ddd;">Motivo / Diagnóstico</th>
+                <th style="padding: 10px; border: 1px solid #ddd;">Fecha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for est in estudiantes %}
+            <tr>
+                <td style="padding: 10px; border: 1px solid #ddd;">{{ est['id'] }}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{{ est['nombre'] }}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{{ est['documento'] }}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{{ est['ficha'] }}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{{ est['motivo'] }}</td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{{ est['fecha'] }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="padding: 15px; text-align: center; color: #888;">Aún no hay respuestas guardadas.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const labels = {{ labels|tojson }};
+    const valores = {{ valores|tojson }};
+
+    const ctx = document.getElementById('graficaBarras').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Cantidad de Estudiantes',
+                data: valores,
+                backgroundColor: '#39A900',
+                borderColor: '#2e7d32',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

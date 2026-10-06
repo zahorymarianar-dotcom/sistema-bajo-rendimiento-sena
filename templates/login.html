@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center my-5">
+    <div class="col-md-5">
+        <div class="card shadow border-0 rounded-3">
+            <div class="card-body p-4">
+                <h3 class="text-center fw-bold text-primary mb-4">Acceso a Docentes</h3>
+                
+                <form action="/login" method="POST">
+                    <div class="mb-3">
+                        <label for="correo" class="form-label fw-bold">Correo Institucional</label>
+                        <input type="email" class="form-control" id="correo" name="correo" placeholder="ejemplo@sena.edu.co" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label fw-bold">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-block py-2">Iniciar Sesión</button>
+                    </div>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">Usuario de prueba: admin@sena.edu.co | Clave: admin123</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
