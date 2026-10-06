@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="background-color: white; padding: 25px; border-radius: 8px; max-width: 600px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <h2 style="color: #39A900; margin-bottom: 20px; text-align: center;">Registro de Encuesta de Bajo Rendimiento</h2>
+
+    <form action="/registro" method="POST">
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre del Aprendiz:</label>
+            <input type="text" name="nombre" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Documento de Identidad:</label>
+            <input type="text" name="documento" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Número de Ficha:</label>
+            <input type="text" name="ficha" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Motivo / Diagnóstico de Bajo Rendimiento:</label>
+            <select name="motivo" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <option value="">-- Seleccione una opción --</option>
+                <option value="Problemas Personales / Familiares">Problemas Personales / Familiares</option>
+                <option value="Dificultades Económicas / Laborales">Dificultades Económicas / Laborales</option>
+                <option value="Falta de Comprensión del Tema">Falta de Comprensión del Tema</option>
+                <option value="Falta de Tiempo / Organización">Falta de Tiempo / Organización</option>
+                <option value="Fallas Técnicas / Conectividad">Fallas Técnicas / Conectividad</option>
+            </select>
+        </div>
+
+        <button type="submit" style="background-color: #39A900; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold;">Guardar Encuesta</button>
+    </form>
+</div>
+{% endblock %}
