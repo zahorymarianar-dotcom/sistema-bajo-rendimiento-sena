@@ -48,8 +48,10 @@ def registro():
         return redirect(url_for('index'))
     return render_template('registro.html')
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'POST':
+        return redirect(url_for('admin'))
     return render_template('login.html')
 
 @app.route('/admin')
