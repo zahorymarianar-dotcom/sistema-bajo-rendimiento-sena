@@ -48,6 +48,10 @@ def registro():
         return redirect(url_for('index'))
     return render_template('registro.html')
 
+@app.route('/login')
+def login():
+    return render_template('login.html')
+
 @app.route('/admin')
 def admin():
     conn = get_db_connection()
