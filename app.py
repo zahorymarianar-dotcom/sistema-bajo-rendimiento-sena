@@ -17,6 +17,7 @@ def init_db():
             nombre TEXT NOT NULL,
             documento TEXT NOT NULL,
             ficha TEXT NOT NULL,
+            estado_rendimiento TEXT DEFAULT 'Bajo Rendimiento',
             motivo TEXT NOT NULL,
             horas_estudio TEXT DEFAULT '1-3 horas',
             materias_reprobadas INTEGER DEFAULT 1,
@@ -24,6 +25,12 @@ def init_db():
         )
     ''')
     
+    # Asegurar migración de columna si la BD ya existe
+    try:
+        conn.execute("ALTER TABLE estudiantes ADD COLUMN estado_rendimiento TEXT DEFAULT 'Bajo Rendimiento'")
+    except sqlite3.OperationalError:
+        pass
+
     try:
         conn.execute("ALTER TABLE estudiantes ADD COLUMN horas_estudio TEXT DEFAULT '1-3 horas'")
     except sqlite3.OperationalError:
@@ -34,18 +41,20 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    # Datos iniciales para demostración con varias fichas y estados
     cursor = conn.execute("SELECT COUNT(*) FROM estudiantes")
     if cursor.fetchone()[0] == 0:
         datos_semilla = [
-            ('Carlos Eduardo Ruiz', '1012345678', '3157141', 'Falta de Hábitos de Estudio', '0-1 horas', 3),
-            ('Laura Daniela Gómez', '1023456789', '3157141', 'Incidencia Docente / Metodología', '1-3 horas', 2),
-            ('Andrés Felipe López', '1034567890', '3157141', 'Afectación Emocional / Personal', '3-5 horas', 1),
-            ('Sofia Valentina Torres', '1045678901', '3157141', 'Dificultad Técnica / Herramientas', '1-3 horas', 2),
-            ('Mateo Alejandro Ramírez', '1056789012', '3157141', 'Falta de Hábitos de Estudio', '0-1 horas', 4)
+            ('Carlos Eduardo Ruiz', '1012345678', '3157141', 'Bajo Rendimiento', 'Falta de Hábitos de Estudio', '0-1 horas', 3),
+            ('Laura Daniela Gómez', '1023456789', '3157141', 'Buen Rendimiento', 'Ninguno / Excelente Desempeño', '+5 horas', 0),
+            ('Andrés Felipe López', '1034567890', '3157141', 'Bajo Rendimiento', 'Afectación Emocional / Personal', '3-5 horas', 1),
+            ('Sofia Valentina Torres', '1045678901', '2891234', 'Buen Rendimiento', 'Ninguno / Excelente Desempeño', '+5 horas', 0),
+            ('Mateo Alejandro Ramírez', '1056789012', '2891234', 'Bajo Rendimiento', 'Falta de Hábitos de Estudio', '0-1 horas', 4),
+            ('Camila Andrea Camacho', '1098722621', '3157141', 'Buen Rendimiento', 'Ninguno / Excelente Desempeño', '3-5 horas', 0)
         ]
         conn.executemany('''
-            INSERT INTO estudiantes (nombre, documento, ficha, motivo, horas_estudio, materias_reprobadas)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO estudiantes (nombre, documento, ficha, estado_rendimiento, motivo, horas_estudio, materias_reprobadas)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', datos_semilla)
 
     conn.commit()
@@ -59,7 +68,7 @@ HTML_LAYOUT = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SENA & Colcato - Diagnóstico de Bajo Rendimiento Académico</title>
+    <title>SENA & Colcato - Diagnóstico de Rendimiento Académico</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -174,31 +183,31 @@ def index():
             <div class="col-lg-10">
                 <div class="hero-card p-5 text-center shadow-lg">
                     <span class="badge badge-sena mb-3"><i class="bi bi-geo-alt-fill me-1"></i> San Vicente de Chucurí</span>
-                    <h1 class="display-5 fw-black text-dark mb-3">Diagnóstico de Bajo Rendimiento Académico</h1>
+                    <h1 class="display-5 fw-black text-dark mb-3">Diagnóstico y Comparativo de Rendimiento Académico</h1>
                     <h4 class="text-success fw-bold mb-4">Colegio Integrado Camilo Torres</h4>
                     <p class="lead text-secondary mb-4 mx-auto style='max-width: 750px;'">
-                        Sistema inteligente diseñado para identificar, procesar y analizar las causas principales de bajo rendimiento académico en los estudiantes de la institución en articulación con el SENA.
+                        Plataforma interactiva para evaluar el desempeño académico por fichas de formación, generando comparativos entre estudiantes de <strong>Buen Rendimiento</strong> y <strong>Bajo Rendimiento</strong>.
                     </p>
                     <div class="row g-4 my-4">
                         <div class="col-md-4">
                             <div class="card card-creative p-4 h-100">
                                 <i class="bi bi-journal-text text-success fs-1 mb-2"></i>
-                                <h5 class="fw-bold">Encuesta Digital</h5>
-                                <p class="text-muted small mb-0">Captura de datos de hábitos de estudio y factores académicos.</p>
+                                <h5 class="fw-bold">Encuesta de Diagnóstico</h5>
+                                <p class="text-muted small mb-0">Captura de estado académico, hábitos y causales por aprendiz.</p>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="card card-creative p-4 h-100">
-                                <i class="bi bi-pie-chart-fill text-warning fs-1 mb-2"></i>
-                                <h5 class="fw-bold">Estadísticas Camilo Torres</h5>
-                                <p class="text-muted small mb-0">Gráficos interactivos de causas de bajo rendimiento por ficha y curso.</p>
+                                <i class="bi bi-bar-chart-steps text-warning fs-1 mb-2"></i>
+                                <h5 class="fw-bold">Gráficas por Ficha</h5>
+                                <p class="text-muted small mb-0">Comparativa directa de aprendices con buen vs. bajo rendimiento por ficha.</p>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="card card-creative p-4 h-100">
                                 <i class="bi bi-shield-exclamation text-danger fs-1 mb-2"></i>
                                 <h5 class="fw-bold">Alertas Tempranas</h5>
-                                <p class="text-muted small mb-0">Identificación de estudiantes con materias reprobadas para apoyo docente.</p>
+                                <p class="text-muted small mb-0">Identificación inmediata de fichas con alto índice de vulnerabilidad.</p>
                             </div>
                         </div>
                     </div>
@@ -218,15 +227,16 @@ def registro():
         nombre = request.form.get('nombre', 'Anónimo')
         documento = request.form.get('documento', '0000')
         ficha = request.form.get('ficha', '3157141')
+        estado_rendimiento = request.form.get('estado_rendimiento', 'Bajo Rendimiento')
         motivo = request.form.get('motivo', 'Falta de Hábitos de Estudio')
         horas = request.form.get('horas', '1-3 horas')
-        materias = int(request.form.get('materias', 1))
+        materias = int(request.form.get('materias', 0))
 
         conn = get_db_connection()
         conn.execute('''
-            INSERT INTO estudiantes (nombre, documento, ficha, motivo, horas_estudio, materias_reprobadas) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (nombre, documento, ficha, motivo, horas, materias))
+            INSERT INTO estudiantes (nombre, documento, ficha, estado_rendimiento, motivo, horas_estudio, materias_reprobadas) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (nombre, documento, ficha, estado_rendimiento, motivo, horas, materias))
         conn.commit()
         conn.close()
 
@@ -241,7 +251,7 @@ def registro():
                             <i class="bi bi-card-checklist fs-4"></i>
                         </div>
                         <div>
-                            <h3 class="fw-bold mb-0">Encuesta de Diagnóstico Académico</h3>
+                            <h3 class="fw-bold mb-0">Encuesta de Rendimiento Académico</h3>
                             <small class="text-muted">Colegio Integrado Camilo Torres - San Vicente de Chucurí</small>
                         </div>
                     </div>
@@ -260,6 +270,13 @@ def registro():
                                 <input type="text" name="ficha" class="form-control form-control-lg rounded-3" value="3157141" required placeholder="Ingrese la ficha">
                             </div>
                             <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-bar-chart-line me-1 text-primary"></i> Estado de Rendimiento Académico</label>
+                                <select name="estado_rendimiento" class="form-select form-select-lg rounded-3" required>
+                                    <option value="Buen Rendimiento">Buen Rendimiento (Aprobando todas las materias)</option>
+                                    <option value="Bajo Rendimiento" selected>Bajo Rendimiento (Con materias/resultados en riesgo)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
                                 <label class="form-label fw-bold"><i class="bi bi-clock-history me-1 text-success"></i> Horas de Estudio Autónomo (Semanal)</label>
                                 <select name="horas" class="form-select form-select-lg rounded-3" required>
                                     <option value="0-1 horas">0 a 1 horas (Baja dedicación)</option>
@@ -268,23 +285,24 @@ def registro():
                                     <option value="+5 horas">Más de 5 horas (Excelente)</option>
                                 </select>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-x-circle me-1 text-danger"></i> Asignaturas Reprobadas</label>
+                                <input type="number" name="materias" class="form-control form-control-lg rounded-3" min="0" max="15" value="1" required>
+                            </div>
                             <div class="col-12">
-                                <label class="form-label fw-bold"><i class="bi bi-exclamation-triangle me-1 text-danger"></i> Causa Principal de Bajo Rendimiento</label>
+                                <label class="form-label fw-bold"><i class="bi bi-exclamation-triangle me-1 text-warning"></i> Causa Determinante u Observación</label>
                                 <select name="motivo" class="form-select form-select-lg rounded-3" required>
+                                    <option value="Ninguno / Excelente Desempeño">Ninguno / Buen Desempeño Académico</option>
                                     <option value="Falta de Hábitos de Estudio">Falta de Hábitos de Estudio / Organización</option>
                                     <option value="Incidencia Docente / Metodología">Incidencia Docente / Metodología de Enseñanza</option>
                                     <option value="Afectación Emocional / Personal">Afectación Emocional / Situación Personal</option>
                                     <option value="Dificultad Técnica / Herramientas">Dificultad Técnica / Herramientas Digitales</option>
                                 </select>
                             </div>
-                            <div class="col-12">
-                                <label class="form-label fw-bold"><i class="bi bi-x-circle me-1 text-danger"></i> Cantidad de Asignaturas / Competencias Perdedoras</label>
-                                <input type="number" name="materias" class="form-control form-control-lg rounded-3" min="0" max="15" value="1" required>
-                            </div>
                         </div>
                         <div class="mt-4 pt-3 border-top">
                             <button type="submit" class="btn btn-creative w-100 py-3 fs-5">
-                                <i class="bi bi-send-check me-2"></i> Enviar Diagnóstico
+                                <i class="bi bi-send-check me-2"></i> Registrar Diagnóstico
                             </button>
                         </div>
                     </form>
@@ -332,43 +350,49 @@ def admin():
     conn = get_db_connection()
     estudiantes = conn.execute('SELECT * FROM estudiantes ORDER BY fecha DESC').fetchall()
     
+    # Consulta por Ficha y Estado de Rendimiento (Buen vs Bajo)
+    fichas_query = conn.execute('''
+        SELECT ficha, 
+               SUM(CASE WHEN estado_rendimiento = 'Buen Rendimiento' THEN 1 ELSE 0 END) as buen_rendimiento,
+               SUM(CASE WHEN estado_rendimiento = 'Bajo Rendimiento' THEN 1 ELSE 0 END) as bajo_rendimiento
+        FROM estudiantes 
+        GROUP BY ficha
+    ''').fetchall()
+
     conteo_motivos = conn.execute('''
         SELECT motivo, COUNT(*) as cantidad 
         FROM estudiantes 
         GROUP BY motivo
     ''').fetchall()
-
-    conteo_horas = conn.execute('''
-        SELECT horas_estudio, COUNT(*) as cantidad 
-        FROM estudiantes 
-        GROUP BY horas_estudio
-    ''').fetchall()
     
     conn.close()
+
+    labels_fichas = [row['ficha'] for row in fichas_query]
+    datos_buen_rendimiento = [row['buen_rendimiento'] for row in fichas_query]
+    datos_bajo_rendimiento = [row['bajo_rendimiento'] for row in fichas_query]
 
     labels_motivos = [row['motivo'] for row in conteo_motivos]
     valores_motivos = [row['cantidad'] for row in conteo_motivos]
 
-    labels_horas = [row['horas_estudio'] for row in conteo_horas]
-    valores_horas = [row['cantidad'] for row in conteo_horas]
-
     total_estudiantes = len(estudiantes)
-    total_materias = sum([e['materias_reprobadas'] if 'materias_reprobadas' in e.keys() and e['materias_reprobadas'] else 1 for e in estudiantes])
-    promedio_materias = round(total_materias / total_estudiantes, 1) if total_estudiantes > 0 else 0
+    total_buen = sum(datos_buen_rendimiento)
+    total_bajo = sum(datos_bajo_rendimiento)
 
     filas_tabla = ""
     for e in estudiantes:
-        m_count = e['materias_reprobadas'] if 'materias_reprobadas' in e.keys() and e['materias_reprobadas'] else 1
-        badge_class = "bg-danger" if m_count >= 3 else ("bg-warning text-dark" if m_count == 2 else "bg-info text-dark")
+        estado = e['estado_rendimiento'] if 'estado_rendimiento' in e.keys() and e['estado_rendimiento'] else 'Bajo Rendimiento'
+        badge_estado = "bg-success" if estado == "Buen Rendimiento" else "bg-danger"
+        m_count = e['materias_reprobadas'] if 'materias_reprobadas' in e.keys() and e['materias_reprobadas'] is not None else 0
         
         filas_tabla += f"""
         <tr>
             <td class="fw-bold">{e['nombre']}</td>
             <td>{e['documento']}</td>
             <td><span class="badge bg-secondary">{e['ficha']}</span></td>
+            <td><span class="badge {badge_estado} fs-6 px-3">{estado}</span></td>
             <td><span class="badge bg-light text-dark border">{e['motivo']}</span></td>
             <td><i class="bi bi-clock me-1"></i> {e['horas_estudio']}</td>
-            <td><span class="badge {badge_class} rounded-pill fs-6 px-3">{m_count} Asignatura(s)</span></td>
+            <td class="fw-bold text-center">{m_count}</td>
         </tr>
         """
 
@@ -376,7 +400,7 @@ def admin():
         <div class="animate__animated animate__fadeIn">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h2 class="fw-bold mb-1"><i class="bi bi-speedometer2 text-success me-2"></i> Dashboard Estadístico</h2>
+                    <h2 class="fw-bold mb-1"><i class="bi bi-speedometer2 text-success me-2"></i> Dashboard Comparativo por Fichas</h2>
                     <p class="text-muted mb-0">Colegio Integrado Camilo Torres - San Vicente de Chucurí (SENA GAES 5)</p>
                 </div>
                 <button onclick="window.print()" class="btn btn-outline-dark fw-bold rounded-pill">
@@ -387,26 +411,26 @@ def admin():
             <!-- KPIs -->
             <div class="row g-4 mb-4">
                 <div class="col-md-4">
-                    <div class="card card-creative p-4 kpi-card border-success">
+                    <div class="card card-creative p-4 kpi-card border-primary">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <small class="text-muted fw-bold">ESTUDIANTES REGISTRADOS</small>
+                                <small class="text-muted fw-bold">TOTAL APRENDICES</small>
                                 <h2 class="display-5 fw-bold text-dark my-1">{total_estudiantes}</h2>
-                                <small class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Muestra Procesada</small>
+                                <small class="text-primary fw-bold"><i class="bi bi-people-fill me-1"></i> Registrados</small>
                             </div>
-                            <i class="bi bi-people-fill fs-1 text-success opacity-50"></i>
+                            <i class="bi bi-people-fill fs-1 text-primary opacity-50"></i>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="card card-creative p-4 kpi-card border-warning">
+                    <div class="card card-creative p-4 kpi-card border-success">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <small class="text-muted fw-bold">PROMEDIO PERDIDO</small>
-                                <h2 class="display-5 fw-bold text-dark my-1">{promedio_materias}</h2>
-                                <small class="text-warning fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> Asignaturas / Estudiante</small>
+                                <small class="text-muted fw-bold">BUEN RENDIMIENTO</small>
+                                <h2 class="display-5 fw-bold text-success my-1">{total_buen}</h2>
+                                <small class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Sin Riesgo</small>
                             </div>
-                            <i class="bi bi-journal-x fs-1 text-warning opacity-50"></i>
+                            <i class="bi bi-hand-thumbs-up-fill fs-1 text-success opacity-50"></i>
                         </div>
                     </div>
                 </div>
@@ -414,11 +438,11 @@ def admin():
                     <div class="card card-creative p-4 kpi-card border-danger">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <small class="text-muted fw-bold">ALERTA ACADÉMICA</small>
-                                <h2 class="display-5 fw-bold text-danger my-1">ACTIVA</h2>
-                                <small class="text-danger fw-bold"><i class="bi bi-shield-x me-1"></i> Seguimiento Pedagógico</small>
+                                <small class="text-muted fw-bold">BAJO RENDIMIENTO</small>
+                                <h2 class="display-5 fw-bold text-danger my-1">{total_bajo}</h2>
+                                <small class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> En Riesgo</small>
                             </div>
-                            <i class="bi bi-activity fs-1 text-danger opacity-50"></i>
+                            <i class="bi bi-shield-x fs-1 text-danger opacity-50"></i>
                         </div>
                     </div>
                 </div>
@@ -426,19 +450,19 @@ def admin():
 
             <!-- Gráficos -->
             <div class="row g-4 mb-4">
-                <div class="col-lg-6">
+                <div class="col-lg-7">
                     <div class="card card-creative p-4 h-100">
-                        <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-success me-2"></i> Causas Principales de Bajo Rendimiento</h5>
-                        <div style="position: relative; height:300px;">
-                            <canvas id="pieChart"></canvas>
+                        <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart-grouped text-primary me-2"></i> Rendimiento de Aprendices por Ficha (Buen vs Bajo)</h5>
+                        <div style="position: relative; height:320px;">
+                            <canvas id="fichasChart"></canvas>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-6">
+                <div class="col-lg-5">
                     <div class="card card-creative p-4 h-100">
-                        <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart-line-fill text-primary me-2"></i> Dedicación en Horas de Estudio</h5>
-                        <div style="position: relative; height:300px;">
-                            <canvas id="barChart"></canvas>
+                        <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-success me-2"></i> Causas de Bajo Rendimiento</h5>
+                        <div style="position: relative; height:320px;">
+                            <canvas id="pieChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -447,19 +471,20 @@ def admin():
             <!-- Tabla -->
             <div class="card card-creative p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-table me-2 text-dark"></i> Consolidado de Estudiantes Encuestados</h5>
+                    <h5 class="fw-bold mb-0"><i class="bi bi-table me-2 text-dark"></i> Consolidado por Aprendiz y Ficha</h5>
                     <span class="badge bg-success">Colegio Camilo Torres</span>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle table-custom">
                         <thead class="table-dark">
                             <tr>
-                                <th>Nombre Estudiante</th>
+                                <th>Nombre Aprendiz</th>
                                 <th>Documento</th>
-                                <th>Ficha / Grupo</th>
-                                <th>Causa Principal</th>
+                                <th>Ficha</th>
+                                <th>Estado Academic</th>
+                                <th>Causa / Observación</th>
                                 <th>Horas Estudio</th>
-                                <th>Materias Reprobadas</th>
+                                <th>Reprobadas</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -471,12 +496,46 @@ def admin():
         </div>
 
         <script>
+            const labelsFichas = {labels_fichas};
+            const datosBuen = {datos_buen_rendimiento};
+            const datosBajo = {datos_bajo_rendimiento};
+
             const labelsMotivos = {labels_motivos};
             const valoresMotivos = {valores_motivos};
 
-            const labelsHoras = {labels_horas};
-            const valoresHoras = {valores_horas};
+            // Gráfico de Barras Agrupadas por Ficha (Buen vs Bajo)
+            new Chart(document.getElementById('fichasChart'), {{
+                type: 'bar',
+                data: {{
+                    labels: labelsFichas,
+                    datasets: [
+                        {{
+                            label: 'Buen Rendimiento',
+                            data: datosBuen,
+                            backgroundColor: '#39a900',
+                            borderRadius: 6
+                        }},
+                        {{
+                            label: 'Bajo Rendimiento',
+                            data: datosBajo,
+                            backgroundColor: '#dc3545',
+                            borderRadius: 6
+                        }}
+                    ]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {{
+                        y: {{ beginAtZero: true, ticks: {{ stepSize: 1 }} }}
+                    }},
+                    plugins: {{
+                        legend: {{ position: 'top' }}
+                    }}
+                }}
+            }});
 
+            // Gráfico Torta
             new Chart(document.getElementById('pieChart'), {{
                 type: 'doughnut',
                 data: {{
@@ -491,24 +550,6 @@ def admin():
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {{ legend: {{ position: 'bottom' }} }}
-                }}
-            }});
-
-            new Chart(document.getElementById('barChart'), {{
-                type: 'bar',
-                data: {{
-                    labels: labelsHoras,
-                    datasets: [{{
-                        label: 'Cantidad de Estudiantes',
-                        data: valoresHoras,
-                        backgroundColor: '#00324d',
-                        borderRadius: 8
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {{ legend: {{ display: false }} }}
                 }}
             }});
         </script>
