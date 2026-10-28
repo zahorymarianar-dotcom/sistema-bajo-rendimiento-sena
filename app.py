@@ -6,7 +6,6 @@ app = Flask(__name__)
 DB_NAME = 'encuesta_sena.db'
 
 def init_db():
-    """Crea la base de datos y carga los 66 registros iniciales si no existe."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
@@ -20,7 +19,6 @@ def init_db():
         )
     ''')
     
-    # Si la base de datos está vacía, insertamos los 66 registros base
     cursor.execute('SELECT COUNT(*) FROM respuestas')
     count = cursor.fetchone()[0]
     if count == 0:
@@ -42,17 +40,14 @@ def init_db():
     
     conn.close()
 
-# Inicializar BD al arrancar
 init_db()
 
 @app.route('/')
 def index():
-    """Página principal con el formulario."""
     return render_template('index.html')
 
 @app.route('/guardar', methods=['POST'])
 def guardar():
-    """Recibe la encuesta (ej. Fabio), la guarda en SQLite sumando el registro y redirige a gráficos."""
     nombre = request.form.get('nombre', 'Anónimo')
     promedio = float(request.form.get('promedio', 3.5))
     horas = request.form.get('horas', '1 - 3 Horas')
@@ -71,7 +66,6 @@ def guardar():
 
 @app.route('/graficos')
 def graficos():
-    """Calcula los totales (las 67+ encuestas) y genera los gráficos dinámicos."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
@@ -89,4 +83,15 @@ def graficos():
     h_labels = ['0 - 1 Hora', '1 - 3 Horas', '3 - 5 Horas', 'Más de 5 Horas']
     h_data = [conteo_horas.get(label, 0) for label in h_labels]
     
-    c_labels = list(conteo_causales.
+    c_labels = list(conteo_causales.keys())
+    c_data = list(conteo_causales.values())
+    
+    return render_template('graficos.html', 
+                           total=total_encuestas, 
+                           h_labels=h_labels, 
+                           h_data=h_data,
+                           c_labels=c_labels,
+                           c_data=c_data)
+
+if __name__ == '__main__':
+    app.run(debug=True)
