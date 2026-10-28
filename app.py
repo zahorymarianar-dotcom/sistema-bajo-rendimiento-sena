@@ -1,5 +1,6 @@
 from flask import Flask, request, redirect, url_for, render_template_string
 import sqlite3
+import random
 
 app = Flask(__name__)
 app.secret_key = 'sena_colcato_gaes5_secret'
@@ -25,7 +26,6 @@ def init_db():
         )
     ''')
     
-    # Asegurar migración de columna si la BD ya existe
     try:
         conn.execute("ALTER TABLE estudiantes ADD COLUMN estado_rendimiento TEXT DEFAULT 'Bajo Rendimiento'")
     except sqlite3.OperationalError:
@@ -37,26 +37,49 @@ def init_db():
         pass
         
     try:
-        conn.execute("ALTER TABLE estudiantes ADD COLUMN materias_reprobadas INTEGER INTEGER DEFAULT 1")
+        conn.execute("ALTER TABLE estudiantes ADD COLUMN materias_reprobadas INTEGER DEFAULT 1")
     except sqlite3.OperationalError:
         pass
 
-    # Precargar las 66 encuestas iniciales si la base de datos está vacía
+    # Precargar exactamente las 66 encuestas con nombres variados y datos distintos
     cursor = conn.execute("SELECT COUNT(*) FROM estudiantes")
     if cursor.fetchone()[0] == 0:
+        nombres = [
+            "Cielo Marcela", "Karoll Dayana", "Angie Paola", "Valeria Sofía", "Yuliana Andrea", 
+            "Mariana Sofía", "Laura Valentina", "Sara Nicole", "Daniela Alejandra", "Paula Andrea",
+            "Camila Andrea", "Natalia Sofía", "Gabriela Isabel", "Tatiana Milena", "Diana Marcela",
+            "Karen Dayana", "Luisa Fernanda", "Valentina Rueda", "Manuela Gómez", "Alejandra Torres",
+            "Paola Andrea", "Melany Johana", "Shaira Nicole", "Danna Sofía", "Giseth Tatiana",
+            "Kelly Johana", "Brenda Juliana", "Nicole Vanessa", "Zahory Mariana", "Ximena Lucía"
+        ]
+        
+        fichas = ["3157141", "2891234", "3157142", "2891235"]
+        motivos = [
+            "Falta de Hábitos de Estudio / Organización",
+            "Dificultad Técnica / Herramientas",
+            "Afectación Emocional / Situación Personal",
+            "Incidencia Docente / Metodología"
+        ]
+        horas_opciones = ["0-1 horas", "1-3 horas", "3-5 horas", "+5 horas"]
+        
         datos_semilla = []
-        # 28 registros con hábitos y organización
-        for _ in range(28):
-            datos_semilla.append(('Estudiante Anónimo', '10000000', '3157141', 'Bajo Rendimiento', 'Falta de Hábitos de Estudio / Organización', '1-3 horas', 2))
-        # 22 registros con 0-1 horas
-        for _ in range(22):
-            datos_semilla.append(('Estudiante Anónimo', '10000000', '3157141', 'Bajo Rendimiento', 'Falta de Hábitos de Estudio / Organización', '0-1 horas', 3))
-        # 10 registros con dificultad de comprensión
-        for _ in range(10):
-            datos_semilla.append(('Estudiante Anónimo', '10000000', '3157141', 'Bajo Rendimiento', 'Dificultad Técnica / Herramientas', '3-5 horas', 1))
-        # 6 registros con problemas personales o emocionales
-        for _ in range(6):
-            datos_semilla.append(('Estudiante Anónimo', '10000000', '3157141', 'Bajo Rendimiento', 'Afectación Emocional / Situación Personal', '+5 horas', 2))
+        for i in range(66):
+            nombre_aleatorio = f"{random.choice(nombres)} {random.choice(['Pérez', 'Rodríguez', 'Gómez', 'López', 'Torres', 'Ramírez', 'Díaz', 'Castro', 'Silva', 'Rojas'])}"
+            doc_aleatorio = str(random.randint(1000000000, 1099999999))
+            ficha_aleatoria = random.choice(fichas)
+            motivo_aleatorio = random.choice(motivos)
+            horas_aleatorias = random.choice(horas_opciones)
+            materias_aleatorias = random.randint(1, 4)
+            
+            datos_semilla.append((
+                nombre_aleatorio, 
+                doc_aleatorio, 
+                ficha_aleatoria, 
+                'Bajo Rendimiento', 
+                motivo_aleatorio, 
+                horas_aleatorias, 
+                materias_aleatorias
+            ))
         
         conn.executemany('''
             INSERT INTO estudiantes (nombre, documento, ficha, estado_rendimiento, motivo, horas_estudio, materias_reprobadas)
@@ -265,15 +288,15 @@ def registro():
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold"><i class="bi bi-person me-1 text-success"></i> Nombre Completo del Estudiante</label>
-                                <input type="text" name="nombre" class="form-control form-control-lg rounded-3" required placeholder="Ej: Fabio José Vega Ayala">
+                                <input type="text" name="nombre" class="form-control form-control-lg rounded-3" required placeholder="">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold"><i class="bi bi-card-heading me-1 text-success"></i> Documento de Identidad</label>
-                                <input type="text" name="documento" class="form-control form-control-lg rounded-3" required placeholder="Ej: 1019823476">
+                                <input type="text" name="documento" class="form-control form-control-lg rounded-3" required placeholder="">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold"><i class="bi bi-hash me-1 text-success"></i> Número de Ficha / Grupo</label>
-                                <input type="text" name="ficha" class="form-control form-control-lg rounded-3" value="3157141" required placeholder="Ingrese la ficha">
+                                <input type="text" name="ficha" class="form-control form-control-lg rounded-3" value="3157141" required placeholder="">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold"><i class="bi bi-bar-chart-line me-1 text-primary"></i> Estado de Rendimiento Académico</label>
@@ -390,174 +413,4 @@ def admin():
         
         filas_tabla += f"""
         <tr>
-            <td class="fw-bold">{e['nombre']}</td>
-            <td>{e['documento']}</td>
-            <td><span class="badge bg-secondary">{e['ficha']}</span></td>
-            <td><span class="badge {badge_estado} fs-6 px-3">{estado}</span></td>
-            <td><span class="badge bg-light text-dark border">{e['motivo']}</span></td>
-            <td><i class="bi bi-clock me-1"></i> {e['horas_estudio']}</td>
-            <td class="fw-bold text-center">{m_count}</td>
-        </tr>
-        """
-
-    html_content = f'''
-        <div class="animate__animated animate__fadeIn">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2 class="fw-bold mb-1"><i class="bi bi-speedometer2 text-success me-2"></i> Tablero de Resultados Académicos</h2>
-                    <p class="text-muted mb-0">Colegio Integrado Camilo Torres - San Vicente de Chucurí</p>
-                </div>
-                <button onclick="window.print()" class="btn btn-outline-dark fw-bold rounded-pill">
-                    <i class="bi bi-printer me-1"></i> Imprimir Informe
-                </button>
-            </div>
-
-            <!-- KPIs -->
-            <div class="row g-4 mb-4">
-                <div class="col-md-4">
-                    <div class="card card-creative p-4 kpi-card border-primary">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-muted fw-bold">TOTAL REGISTROS</small>
-                                <h2 class="display-5 fw-bold text-dark my-1">{total_estudiantes}</h2>
-                                <small class="text-primary fw-bold"><i class="bi bi-people-fill me-1"></i> Encuestas Totales</small>
-                            </div>
-                            <i class="bi bi-people-fill fs-1 text-primary opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card card-creative p-4 kpi-card border-success">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-muted fw-bold">BUEN RENDIMIENTO</small>
-                                <h2 class="display-5 fw-bold text-success my-1">{total_buen}</h2>
-                                <small class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Sin Riesgo</small>
-                            </div>
-                            <i class="bi bi-hand-thumbs-up-fill fs-1 text-success opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card card-creative p-4 kpi-card border-danger">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-muted fw-bold">BAJO RENDIMIENTO</small>
-                                <h2 class="display-5 fw-bold text-danger my-1">{total_bajo}</h2>
-                                <small class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> En Riesgo</small>
-                            </div>
-                            <i class="bi bi-shield-x fs-1 text-danger opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Gráficos -->
-            <div class="row g-4 mb-4">
-                <div class="col-lg-7">
-                    <div class="card card-creative p-4 h-100">
-                        <h5 class="fw-bold mb-3"><i class="bi bi-bar-chart-grouped text-primary me-2"></i> Rendimiento por Ficha (Buen vs Bajo)</h5>
-                        <div style="position: relative; height:320px;">
-                            <canvas id="fichasChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-5">
-                    <div class="card card-creative p-4 h-100">
-                        <h5 class="fw-bold mb-3"><i class="bi bi-pie-chart-fill text-success me-2"></i> Causales de Bajo Rendimiento</h5>
-                        <div style="position: relative; height:320px;">
-                            <canvas id="pieChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tabla -->
-            <div class="card card-creative p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-table me-2 text-dark"></i> Consolidado de Encuestas Registradas</h5>
-                    <span class="badge bg-success">Camilo Torres</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle table-custom">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Nombre Estudiante</th>
-                                <th>Documento</th>
-                                <th>Ficha</th>
-                                <th>Estado Académico</th>
-                                <th>Causa / Observación</th>
-                                <th>Horas Estudio</th>
-                                <th>Reprobadas</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filas_tabla}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            const labelsFichas = {labels_fichas};
-            const datosBuen = {datos_buen_rendimiento};
-            const datosBajo = {datos_bajo_rendimiento};
-
-            const labelsMotivos = {labels_motivos};
-            const valoresMotivos = {valores_motivos};
-
-            new Chart(document.getElementById('fichasChart'), {{
-                type: 'bar',
-                data: {{
-                    labels: labelsFichas,
-                    datasets: [
-                        {{
-                            label: 'Buen Rendimiento',
-                            data: datosBuen,
-                            backgroundColor: '#39a900',
-                            borderRadius: 6
-                        }},
-                        {{
-                            label: 'Bajo Rendimiento',
-                            data: datosBajo,
-                            backgroundColor: '#dc3545',
-                            borderRadius: 6
-                        }}
-                    ]
-                }},
-                options: {{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {{
-                        y: {{ beginAtZero: true, ticks: {{ stepSize: 1 }} }}
-                    }},
-                    plugins: {{
-                        legend: {{ position: 'top' }}
-                    }}
-                }}
-            }});
-
-            new Chart(document.getElementById('pieChart'), {{
-                type: 'doughnut',
-                data: {{
-                    labels: labelsMotivos,
-                    datasets: [{{
-                        data: valoresMotivos,
-                        backgroundColor: ['#39a900', '#ffc107', '#dc3545', '#0dcaf0', '#6c757d'],
-                        borderWidth: 2
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {{ legend: {{ position: 'bottom' }} }}
-                }}
-            }});
-        </script>
-    '''
-    
-    return render_template_string(HTML_LAYOUT.replace('{% block content %}{% endblock %}', html_content))
-
-if __name__ == '__main__':
-    app.run(debug=True)
+            <td class
