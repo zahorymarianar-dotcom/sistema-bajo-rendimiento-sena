@@ -1,19 +1,16 @@
 from flask import Flask, request, redirect, url_for, render_template_string
 import sqlite3
-import random
 
 app = Flask(__name__)
 app.secret_key = 'sena_colcato_gaes5_secret'
 
 def get_db_connection():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect('database.db', timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
     conn = get_db_connection()
-    
-    # Crear la tabla limpia si no existe
     conn.execute('''
         CREATE TABLE IF NOT EXISTS estudiantes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +25,7 @@ def init_db():
         )
     ''')
     
-    # Asegurar columnas si la tabla ya existía previamente
+    # Asegurar columnas
     columnas = [col['name'] for col in conn.execute("PRAGMA table_info(estudiantes)").fetchall()]
     if 'estado_rendimiento' not in columnas:
         conn.execute("ALTER TABLE estudiantes ADD COLUMN estado_rendimiento TEXT DEFAULT 'Bajo Rendimiento'")
@@ -37,46 +34,33 @@ def init_db():
     if 'materias_reprobadas' not in columnas:
         conn.execute("ALTER TABLE estudiantes ADD COLUMN materias_reprobadas INTEGER DEFAULT 1")
 
-    # Precargar exactamente las 66 encuestas con nombres variados si está vacía
+    # Precargar las 66 encuestas de forma ligera y rápida
     cursor = conn.execute("SELECT COUNT(*) FROM estudiantes")
     if cursor.fetchone()[0] == 0:
-        nombres = [
-            "Cielo Marcela", "Karoll Dayana", "Angie Paola", "Valeria Sofía", "Yuliana Andrea", 
-            "Mariana Sofía", "Laura Valentina", "Sara Nicole", "Daniela Alejandra", "Paula Andrea",
-            "Camila Andrea", "Natalia Sofía", "Gabriela Isabel", "Tatiana Milena", "Diana Marcela",
-            "Karen Dayana", "Luisa Fernanda", "Valentina Rueda", "Manuela Gómez", "Alejandra Torres",
-            "Paola Andrea", "Melany Johana", "Shaira Nicole", "Danna Sofía", "Giseth Tatiana",
-            "Kelly Johana", "Brenda Juliana", "Nicole Vanessa", "Zahory Mariana", "Ximena Lucía"
+        nombres_base = [
+            ("Cielo Marcela Pérez", "3157141", "Falta de Hábitos de Estudio / Organización", "1-3 horas", 2),
+            ("Karoll Dayana Rodríguez", "3157141", "Dificultad Técnica / Herramientas", "0-1 horas", 3),
+            ("Angie Paola Gómez", "2891234", "Afectación Emocional / Situación Personal", "3-5 horas", 1),
+            ("Valeria Sofía López", "3157141", "Incidencia Docente / Metodología", "+5 horas", 2),
+            ("Yuliana Andrea Torres", "2891235", "Falta de Hábitos de Estudio / Organización", "1-3 horas", 2),
+            ("Mariana Sofía Ramírez", "3157141", "Dificultad Técnica / Herramientas", "0-1 horas", 4),
+            ("Laura Valentina Díaz", "3157142", "Afectación Emocional / Situación Personal", "3-5 horas", 1),
+            ("Sara Nicole Castro", "3157141", "Incidencia Docente / Metodología", "+5 horas", 2)
         ]
-        
-        fichas = ["3157141", "2891234", "3157142", "2891235"]
-        motivos = [
-            "Falta de Hábitos de Estudio / Organización",
-            "Dificultad Técnica / Herramientas",
-            "Afectación Emocional / Situación Personal",
-            "Incidencia Docente / Metodología"
-        ]
-        horas_opciones = ["0-1 horas", "1-3 horas", "3-5 horas", "+5 horas"]
         
         datos_semilla = []
-        for _ in range(66):
-            nombre_aleatorio = f"{random.choice(nombres)} {random.choice(['Pérez', 'Rodríguez', 'Gómez', 'López', 'Torres', 'Ramírez', 'Díaz', 'Castro', 'Silva', 'Rojas'])}"
-            doc_aleatorio = str(random.randint(1000000000, 1099999999))
-            ficha_aleatoria = random.choice(fichas)
-            motivo_aleatorio = random.choice(motivos)
-            horas_aleatorias = random.choice(horas_opciones)
-            materias_aleatorias = random.randint(1, 4)
+        for i in range(66):
+            info = nombres_base[i % len(nombres_base)]
+            # Generar variaciones para completar los 66 registros únicos
+            nombre = f"{info[0].split()[0]} {info[0].split()[1]} Estudiante {i+1}"
+            doc = str(1010000000 + i)
+            ficha = info[1]
+            motivo = info[2]
+            horas = info[3]
+            materias = info[4]
             
-            datos_semilla.append((
-                nombre_aleatorio, 
-                doc_aleatorio, 
-                ficha_aleatoria, 
-                'Bajo Rendimiento', 
-                motivo_aleatorio, 
-                horas_aleatorias, 
-                materias_aleatorias
-            ))
-        
+            datos_semilla.append((nombre, doc, ficha, 'Bajo Rendimiento', motivo, horas, materias))
+            
         conn.executemany('''
             INSERT INTO estudiantes (nombre, documento, ficha, estado_rendimiento, motivo, horas_estudio, materias_reprobadas)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -152,3 +136,104 @@ HTML_LAYOUT = """
             box-shadow: 0 6px 20px rgba(57, 169, 0, 0.4);
         }
         .kpi-card {
+            border-left: 5px solid var(--sena-green);
+        }
+        .table-custom {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom py-3 sticky-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2 font-monospace fw-bold fs-5" href="/">
+                <i class="bi bi-building-fill-gear text-warning fs-4"></i>
+                <span>Colegio Integrado Camilo Torres <span class="text-success">|</span> Ficha 3157141</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link text-white fw-semibold px-3" href="/"><i class="bi bi-house-door me-1"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white fw-semibold px-3" href="/registro"><i class="bi bi-clipboard2-check me-1"></i> Encuesta Estudiantil</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-warning text-dark fw-bold px-4 ms-lg-3 rounded-pill" href="/login">
+                            <i class="bi bi-person-workspace me-1"></i> Panel Docente
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="text-center py-4 text-muted border-top mt-5 bg-white">
+        <small>© 2026 Colegio Integrado Camilo Torres (San Vicente de Chucurí)</small>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def index():
+    html = HTML_LAYOUT.replace('{% block content %}{% endblock %}', '''
+        <div class="row justify-content-center align-items-center min-vh-75 animate__animated animate__fadeIn">
+            <div class="col-lg-10">
+                <div class="hero-card p-5 text-center shadow-lg">
+                    <span class="badge badge-sena mb-3"><i class="bi bi-geo-alt-fill me-1"></i> San Vicente de Chucurí</span>
+                    <h1 class="display-5 fw-black text-dark mb-3">Sistema de Diagnóstico del Bajo Rendimiento Académico</h1>
+                    <h4 class="text-success fw-bold mb-4">Colegio Integrado Camilo Torres</h4>
+                    <p class="lead text-secondary mb-4 mx-auto style='max-width: 750px;'">
+                        Plataforma interactiva institucional para evaluar el desempeño académico, registrar encuestas y visualizar el consolidado en tiempo real.
+                    </p>
+                    <div class="row g-4 my-4">
+                        <div class="col-md-4">
+                            <div class="card card-creative p-4 h-100">
+                                <i class="bi bi-journal-text text-success fs-1 mb-2"></i>
+                                <h5 class="fw-bold">Encuesta de Diagnóstico</h5>
+                                <p class="text-muted small mb-0">Captura de estado académico, hábitos y causales por estudiante.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card card-creative p-4 h-100">
+                                <i class="bi bi-bar-chart-steps text-warning fs-1 mb-2"></i>
+                                <h5 class="fw-bold">Gráficas Dinámicas</h5>
+                                <p class="text-muted small mb-0">Visualización inmediata de las encuestas registradas.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card card-creative p-4 h-100">
+                                <i class="bi bi-shield-exclamation text-danger fs-1 mb-2"></i>
+                                <h5 class="fw-bold">Control y Estadísticas</h5>
+                                <p class="text-muted small mb-0">Monitoreo de factores asociados al rendimiento académico.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-center gap-3 mt-4">
+                        <a href="/registro" class="btn btn-creative btn-lg"><i class="bi bi-pencil-square me-2"></i> Diligenciar Encuesta</a>
+                        <a href="/login" class="btn btn-outline-dark btn-lg rounded-3 fw-bold px-4"><i class="bi bi-speedometer2 me-2"></i> Panel de Control</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    ''')
+    return render_template_string(html)
+
+@app.route('/registro', methods=['GET', 'POST'])
+def registro():
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', 'Anónimo')
+        documento = request.form.get('documento', '0000')
+        ficha = request.form.get('ficha', '3157141')
+        estado_rendimiento = request.form.get('estado_rendimiento', 'Bajo
