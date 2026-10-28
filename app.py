@@ -7,7 +7,6 @@ DB_NAME = 'encuesta_sena.db'
 
 def init_db():
     """Crea la base de datos y carga los 66 registros iniciales si no existe."""
-    db_exists = os.path.exists(DB_NAME)
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
@@ -21,11 +20,10 @@ def init_db():
         )
     ''')
     
-    # Si la base de datos es nueva, insertamos los 66 registros base
+    # Si la base de datos está vacía, insertamos los 66 registros base
     cursor.execute('SELECT COUNT(*) FROM respuestas')
     count = cursor.fetchone()[0]
     if count == 0:
-        # Registros base del estudio
         datos_base = []
         for _ in range(28):
             datos_base.append(('Estudiante Anónimo', 3.8, '1 - 3 Horas', 'Falta de hábitos y organización del tiempo'))
@@ -44,17 +42,17 @@ def init_db():
     
     conn.close()
 
-# Inicializar BD
+# Inicializar BD al arrancar
 init_db()
 
 @app.route('/')
 def index():
-    """Página principal con el formulario de la encuesta."""
+    """Página principal con el formulario."""
     return render_template('index.html')
 
 @app.route('/guardar', methods=['POST'])
 def guardar():
-    """Recibe los datos del formulario (ej. Fabio), los guarda en SQLite y redirige a los gráficos."""
+    """Recibe la encuesta (ej. Fabio), la guarda en SQLite sumando el registro y redirige a gráficos."""
     nombre = request.form.get('nombre', 'Anónimo')
     promedio = float(request.form.get('promedio', 3.5))
     horas = request.form.get('horas', '1 - 3 Horas')
@@ -73,38 +71,22 @@ def guardar():
 
 @app.route('/graficos')
 def graficos():
-    """Página que calcula los totales (las 67 encuestas) y genera los gráficos dinámicos."""
+    """Calcula los totales (las 67+ encuestas) y genera los gráficos dinámicos."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Total de respuestas acumuladas
     cursor.execute('SELECT COUNT(*) FROM respuestas')
     total_encuestas = cursor.fetchone()[0]
     
-    # Conteo por horas de estudio
     cursor.execute('SELECT horas, COUNT(*) FROM respuestas GROUP BY horas')
     conteo_horas = dict(cursor.fetchall())
     
-    # Conteo por causales de bajo rendimiento
     cursor.execute('SELECT causal, COUNT(*) FROM respuestas GROUP BY causal')
     conteo_causales = dict(cursor.fetchall())
     
     conn.close()
     
-    # Datos ordenados para la gráfica de barras
     h_labels = ['0 - 1 Hora', '1 - 3 Horas', '3 - 5 Horas', 'Más de 5 Horas']
     h_data = [conteo_horas.get(label, 0) for label in h_labels]
     
-    # Datos para la gráfica circular de causales
-    c_labels = list(conteo_causales.keys())
-    c_data = list(conteo_causales.values())
-    
-    return render_template('graficos.html', 
-                           total=total_encuestas, 
-                           h_labels=h_labels, 
-                           h_data=h_data,
-                           c_labels=c_labels,
-                           c_data=c_data)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    c_labels = list(conteo_causales.
