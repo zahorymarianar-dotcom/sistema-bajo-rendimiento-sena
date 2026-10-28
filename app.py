@@ -9,7 +9,7 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db():
+def asegurar_db():
     conn = get_db_connection()
     conn.execute('''
         CREATE TABLE IF NOT EXISTS estudiantes (
@@ -25,7 +25,6 @@ def init_db():
         )
     ''')
     
-    # Asegurar columnas
     columnas = [col['name'] for col in conn.execute("PRAGMA table_info(estudiantes)").fetchall()]
     if 'estado_rendimiento' not in columnas:
         conn.execute("ALTER TABLE estudiantes ADD COLUMN estado_rendimiento TEXT DEFAULT 'Bajo Rendimiento'")
@@ -34,7 +33,6 @@ def init_db():
     if 'materias_reprobadas' not in columnas:
         conn.execute("ALTER TABLE estudiantes ADD COLUMN materias_reprobadas INTEGER DEFAULT 1")
 
-    # Precargar las 66 encuestas de forma ligera y rápida
     cursor = conn.execute("SELECT COUNT(*) FROM estudiantes")
     if cursor.fetchone()[0] == 0:
         nombres_base = [
@@ -51,25 +49,21 @@ def init_db():
         datos_semilla = []
         for i in range(66):
             info = nombres_base[i % len(nombres_base)]
-            # Generar variaciones para completar los 66 registros únicos
             nombre = f"{info[0].split()[0]} {info[0].split()[1]} Estudiante {i+1}"
             doc = str(1010000000 + i)
             ficha = info[1]
             motivo = info[2]
             horas = info[3]
             materias = info[4]
-            
             datos_semilla.append((nombre, doc, ficha, 'Bajo Rendimiento', motivo, horas, materias))
             
         conn.executemany('''
             INSERT INTO estudiantes (nombre, documento, ficha, estado_rendimiento, motivo, horas_estudio, materias_reprobadas)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', datos_semilla)
-
-    conn.commit()
+        conn.commit()
+    
     conn.close()
-
-init_db()
 
 HTML_LAYOUT = """
 <!DOCTYPE html>
@@ -187,6 +181,7 @@ HTML_LAYOUT = """
 
 @app.route('/')
 def index():
+    asegurar_db()
     html = HTML_LAYOUT.replace('{% block content %}{% endblock %}', '''
         <div class="row justify-content-center align-items-center min-vh-75 animate__animated animate__fadeIn">
             <div class="col-lg-10">
@@ -232,8 +227,60 @@ def index():
 
 @app.route('/registro', methods=['GET', 'POST'])
 def registro():
+    asegurar_db()
     if request.method == 'POST':
         nombre = request.form.get('nombre', 'Anónimo')
         documento = request.form.get('documento', '0000')
         ficha = request.form.get('ficha', '3157141')
-        estado_rendimiento = request.form.get('estado_rendimiento', 'Bajo
+        estado_rendimiento = request.form.get('estado_rendimiento', 'Bajo Rendimiento')
+        motivo = request.form.get('motivo', 'Falta de Hábitos de Estudio / Organización')
+        horas = request.form.get('horas', '1-3 horas')
+        materias = int(request.form.get('materias', 1))
+
+        conn = get_db_connection()
+        conn.execute('''
+            INSERT INTO estudiantes (nombre, documento, ficha, estado_rendimiento, motivo, horas_estudio, materias_reprobadas) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (nombre, documento, ficha, estado_rendimiento, motivo, horas, materias))
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for('admin'))
+
+    html = HTML_LAYOUT.replace('{% block content %}{% endblock %}', '''
+        <div class="row justify-content-center animate__animated animate__fadeInUp">
+            <div class="col-lg-8">
+                <div class="card card-creative p-5">
+                    <div class="d-flex align-items-center gap-3 mb-4 border-bottom pb-3">
+                        <div class="bg-success text-white rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-card-checklist fs-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="fw-bold mb-0">Encuesta de Rendimiento Académico</h3>
+                            <small class="text-muted">Colegio Integrado Camilo Torres - San Vicente de Chucurí</small>
+                        </div>
+                    </div>
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-person me-1 text-success"></i> Nombre Completo del Estudiante</label>
+                                <input type="text" name="nombre" class="form-control form-control-lg rounded-3" required placeholder="">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-card-heading me-1 text-success"></i> Documento de Identidad</label>
+                                <input type="text" name="documento" class="form-control form-control-lg rounded-3" required placeholder="">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-hash me-1 text-success"></i> Número de Ficha / Grupo</label>
+                                <input type="text" name="ficha" class="form-control form-control-lg rounded-3" value="3157141" required placeholder="">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-bar-chart-line me-1 text-primary"></i> Estado de Rendimiento Académico</label>
+                                <select name="estado_rendimiento" class="form-select form-select-lg rounded-3" required>
+                                    <option value="Buen Rendimiento">Buen Rendimiento (Aprobando todas)</option>
+                                    <option value="Bajo Rendimiento" selected>Bajo Rendimiento (En riesgo)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-clock-history me-1 text-success"></i> Horas de Estudio Autónomo</label>
+                                <select name="horas" class="form-select form
