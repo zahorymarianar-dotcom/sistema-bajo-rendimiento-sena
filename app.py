@@ -2,12 +2,11 @@ from flask import Flask, request, redirect, url_for, render_template_string
 import sqlite3
 import json
 from html import escape
-import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "sena_proyecto_secret")
+app.secret_key = "sena_colcato_gaes5_secret"
 
-DATABASE = os.environ.get("DATABASE_PATH", "database.db")
+DATABASE = "database.db"
 
 
 def get_db_connection():
@@ -29,10 +28,102 @@ def init_db():
             motivo TEXT NOT NULL,
             horas_estudio TEXT DEFAULT '1-3 horas',
             materias_reprobadas INTEGER DEFAULT 1,
-            origen TEXT DEFAULT 'Real',
+            origen TEXT DEFAULT 'Simulado',
             fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    columnas = [
+        ("estado_rendimiento", "TEXT DEFAULT 'Bajo Rendimiento'"),
+        ("horas_estudio", "TEXT DEFAULT '1-3 horas'"),
+        ("materias_reprobadas", "INTEGER DEFAULT 1"),
+        ("origen", "TEXT DEFAULT 'Simulado'")
+    ]
+
+    for nombre_columna, tipo in columnas:
+        try:
+            conn.execute(
+                f"ALTER TABLE estudiantes ADD COLUMN {nombre_columna} {tipo}"
+            )
+        except sqlite3.OperationalError:
+            pass
+
+    total = conn.execute(
+        "SELECT COUNT(*) FROM estudiantes"
+    ).fetchone()[0]
+
+    faltan = max(0, 66 - total)
+
+    nombres = [
+        "Sara", "Valentina", "Sofia", "Camila", "Isabella",
+        "Mariana", "Laura", "Daniela", "Gabriela", "Natalia",
+        "Juliana", "Paula", "Andrea", "Manuela", "Luciana",
+        "Alejandra", "Daniel", "Samuel", "Mateo", "Sebastian",
+        "Nicolas", "Juan", "David"
+    ]
+
+    apellidos = [
+        "Perez", "Acevedo", "Rodriguez", "Gomez", "Rojas",
+        "Martinez", "Torres", "Ramirez", "Castro", "Mendoza",
+        "Moreno", "Garcia", "Vargas", "Lopez", "Suarez"
+    ]
+
+    motivos = [
+        "Falta de Hábitos de Estudio",
+        "Ninguno / Excelente Desempeño",
+        "Afectación Emocional / Personal",
+        "Incidencia Docente / Metodología",
+        "Dificultad Técnica / Herramientas"
+    ]
+
+    horas_opciones = [
+        "0-1 horas", "1-3 horas", "3-5 horas", "+5 horas"
+    ]
+
+    datos = []
+
+    for i in range(faltan):
+        nombre = (
+            f"{nombres[i % len(nombres)]} "
+            f"{apellidos[(i // len(nombres)) % len(apellidos)]}"
+        )
+
+        buen_rendimiento = i % 3 != 1
+
+        if buen_rendimiento:
+            estado = "Buen Rendimiento"
+            motivo = "Ninguno / Excelente Desempeño"
+            materias = 0
+        else:
+            estado = "Bajo Rendimiento"
+            motivo = motivos[i % len(motivos)]
+
+            if motivo == "Ninguno / Excelente Desempeño":
+                motivo = "Falta de Hábitos de Estudio"
+
+            materias = (i % 4) + 1
+
+        ficha = "3157141" if i % 2 == 0 else "2891234"
+        horas = horas_opciones[i % len(horas_opciones)]
+
+        datos.append((
+            nombre,
+            f"SIM-TI-{i + 1:04d}",
+            ficha,
+            estado,
+            motivo,
+            horas,
+            materias,
+            "Simulado"
+        ))
+
+    if datos:
+        conn.executemany("""
+            INSERT INTO estudiantes
+            (nombre, documento, ficha, estado_rendimiento,
+             motivo, horas_estudio, materias_reprobadas, origen)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, datos)
 
     conn.commit()
     conn.close()
@@ -96,6 +187,10 @@ HTML_LAYOUT = """
             background: white;
         }
 
+        .card-creative:hover {
+            box-shadow: 0 12px 32px rgba(0,0,0,.08);
+        }
+
         .badge-sena {
             background: var(--sena-green);
             color: white;
@@ -120,6 +215,8 @@ HTML_LAYOUT = """
         .kpi-card {
             border-left: 5px solid var(--sena-green);
         }
+
+        /* ESTILOS AGREGADOS PARA NUESTRO PROYECTO */
 
         .proyecto-hero {
             background: linear-gradient(135deg, #00324d, #006b45);
@@ -179,7 +276,6 @@ HTML_LAYOUT = """
 </head>
 
 <body>
-
 <nav class="navbar navbar-expand-lg navbar-dark navbar-custom py-3">
     <div class="container">
 
@@ -188,21 +284,11 @@ HTML_LAYOUT = """
             Colegio Integrado Camilo Torres | SENA GAES 5
         </a>
 
-        <button class="navbar-toggler" type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#menuPrincipal">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse" id="menuPrincipal">
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link text-white" href="/">Inicio</a>
-                <a class="nav-link text-white" href="/proyecto">Nuestro proyecto</a>
-                <a class="nav-link text-white" href="/registro">Encuesta</a>
-                <a class="btn btn-warning fw-bold ms-lg-2" href="/login">
-                    Panel Docente
-                </a>
-            </div>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link text-white" href="/">Inicio</a>
+            <a class="nav-link text-white" href="/proyecto">Nuestro proyecto</a>
+            <a class="nav-link text-white" href="/registro">Encuesta</a>
+            <a class="btn btn-warning fw-bold" href="/login">Panel Docente</a>
         </div>
 
     </div>
@@ -217,19 +303,9 @@ HTML_LAYOUT = """
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>
 """
-
-
-def mostrar_pagina(contenido):
-    return render_template_string(
-        HTML_LAYOUT.replace(
-            "{% block content %}{% endblock %}",
-            contenido
-        )
-    )
 
 
 @app.route("/")
@@ -237,10 +313,11 @@ def index():
     contenido = """
     <div class="row justify-content-center animate__animated animate__fadeIn">
         <div class="col-lg-10">
-
             <div class="hero-card p-5 text-center shadow-sm">
 
-                <span class="badge-sena">San Vicente de Chucurí</span>
+                <span class="badge-sena">
+                    San Vicente de Chucurí
+                </span>
 
                 <h1 class="display-5 fw-bold mt-3">
                     Diagnóstico y Comparativo de Rendimiento Académico
@@ -252,12 +329,11 @@ def index():
 
                 <p class="lead text-secondary">
                     Plataforma para analizar el rendimiento académico,
-                    los hábitos de estudio y algunas dificultades que
-                    pueden afectar el aprendizaje de los estudiantes.
+                    los hábitos de estudio y las causas relacionadas
+                    con las dificultades escolares.
                 </p>
 
                 <div class="row g-4 my-4">
-
                     <div class="col-md-4">
                         <div class="card card-creative p-4 h-100">
                             <i class="bi bi-journal-text text-success fs-1"></i>
@@ -270,7 +346,7 @@ def index():
                         <div class="card card-creative p-4 h-100">
                             <i class="bi bi-bar-chart text-warning fs-1"></i>
                             <h5 class="fw-bold mt-2">Gráficas</h5>
-                            <p>Visualización de los datos registrados.</p>
+                            <p>Comparación de los resultados registrados.</p>
                         </div>
                     </div>
 
@@ -278,18 +354,17 @@ def index():
                         <div class="card card-creative p-4 h-100">
                             <i class="bi bi-clipboard-data text-danger fs-1"></i>
                             <h5 class="fw-bold mt-2">Diagnóstico</h5>
-                            <p>Consulta de la información recopilada.</p>
+                            <p>Consulta de los datos del sistema.</p>
                         </div>
                     </div>
-
                 </div>
 
-                <a href="/proyecto" class="btn btn-creative btn-lg m-2">
+                <a href="/proyecto" class="btn btn-outline-success btn-lg m-2">
                     <i class="bi bi-people-fill"></i>
                     Conoce nuestro proyecto
                 </a>
 
-                <a href="/registro" class="btn btn-outline-success btn-lg m-2">
+                <a href="/registro" class="btn btn-creative btn-lg m-2">
                     <i class="bi bi-pencil-square"></i>
                     Diligenciar encuesta
                 </a>
@@ -298,14 +373,19 @@ def index():
                     <i class="bi bi-speedometer2"></i>
                     Panel docente
                 </a>
-
             </div>
         </div>
     </div>
     """
 
-    return mostrar_pagina(contenido)
+    return render_template_string(
+        HTML_LAYOUT.replace(
+            "{% block content %}{% endblock %}", contenido
+        )
+    )
 
+
+# PÁGINA DEL PROYECTO AGREGADA SIN ELIMINAR LAS DEMÁS RUTAS
 
 @app.route("/proyecto")
 def proyecto():
@@ -463,13 +543,16 @@ def proyecto():
     </div>
     """
 
-    return mostrar_pagina(contenido)
+    return render_template_string(
+        HTML_LAYOUT.replace(
+            "{% block content %}{% endblock %}", contenido
+        )
+    )
 
 
 @app.route("/registro", methods=["GET", "POST"])
 def registro():
     if request.method == "POST":
-
         nombre = request.form.get("nombre", "").strip()
         documento = request.form.get("documento", "").strip()
         ficha = request.form.get("ficha", "").strip()
@@ -486,10 +569,10 @@ def registro():
             return "Completa el nombre, documento y ficha.", 400
 
         if estado not in ["Buen Rendimiento", "Bajo Rendimiento"]:
-            return "Selecciona un rendimiento válido.", 400
+            return "Selecciona un estado de rendimiento válido.", 400
 
         if materias < 0 or materias > 15:
-            return "Las materias deben estar entre 0 y 15.", 400
+            return "El número de materias debe estar entre 0 y 15.", 400
 
         conn = get_db_connection()
 
@@ -516,7 +599,6 @@ def registro():
     contenido = """
     <div class="row justify-content-center">
         <div class="col-lg-8">
-
             <div class="card card-creative p-4 p-md-5">
 
                 <h2 class="fw-bold mb-2">
@@ -535,7 +617,8 @@ def registro():
                             <label class="form-label fw-bold">
                                 Nombre completo
                             </label>
-                            <input name="nombre" class="form-control"
+                            <input name="nombre"
+                                   class="form-control"
                                    required maxlength="100">
                         </div>
 
@@ -543,7 +626,8 @@ def registro():
                             <label class="form-label fw-bold">
                                 Documento de identidad
                             </label>
-                            <input name="documento" class="form-control"
+                            <input name="documento"
+                                   class="form-control"
                                    required maxlength="30">
                         </div>
 
@@ -551,8 +635,10 @@ def registro():
                             <label class="form-label fw-bold">
                                 Ficha / Grupo
                             </label>
-                            <input name="ficha" class="form-control"
-                                   value="3157141" required maxlength="30">
+                            <input name="ficha"
+                                   class="form-control"
+                                   value="3157141"
+                                   required maxlength="30">
                         </div>
 
                         <div class="col-md-6">
@@ -574,7 +660,8 @@ def registro():
                             <label class="form-label fw-bold">
                                 Horas de estudio semanales
                             </label>
-                            <select name="horas" class="form-select" required>
+                            <select name="horas"
+                                    class="form-select" required>
                                 <option>0-1 horas</option>
                                 <option selected>1-3 horas</option>
                                 <option>3-5 horas</option>
@@ -586,8 +673,10 @@ def registro():
                             <label class="form-label fw-bold">
                                 Materias reprobadas
                             </label>
-                            <input type="number" name="materias"
-                                   class="form-control" min="0" max="15"
+                            <input type="number"
+                                   name="materias"
+                                   class="form-control"
+                                   min="0" max="15"
                                    value="1" required>
                         </div>
 
@@ -595,7 +684,8 @@ def registro():
                             <label class="form-label fw-bold">
                                 Causa u observación
                             </label>
-                            <select name="motivo" class="form-select" required>
+                            <select name="motivo"
+                                    class="form-select" required>
                                 <option value="Falta de Hábitos de Estudio">
                                     Falta de hábitos de estudio
                                 </option>
@@ -613,21 +703,23 @@ def registro():
                                 </option>
                             </select>
                         </div>
-
                     </div>
 
                     <button class="btn btn-creative w-100 mt-4" type="submit">
                         <i class="bi bi-send-check"></i>
-                        Registrar respuesta
+                        Registrar diagnóstico
                     </button>
-
                 </form>
             </div>
         </div>
     </div>
     """
 
-    return mostrar_pagina(contenido)
+    return render_template_string(
+        HTML_LAYOUT.replace(
+            "{% block content %}{% endblock %}", contenido
+        )
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -638,40 +730,43 @@ def login():
     contenido = """
     <div class="row justify-content-center">
         <div class="col-md-5">
-
             <div class="card card-creative p-5 text-center">
 
-                <i class="bi bi-speedometer2 text-success"
+                <i class="bi bi-shield-lock-fill text-success"
                    style="font-size:3rem"></i>
 
                 <h3 class="fw-bold mt-3">Panel Docente</h3>
 
                 <p class="text-muted">
-                    Acceso de demostración.
+                    Acceso de demostración para consultar los resultados.
                 </p>
 
                 <form method="POST">
-
                     <label class="form-label">Usuario</label>
-                    <input name="user" class="form-control mb-3"
+                    <input name="user"
+                           class="form-control mb-3"
                            value="admin" required>
 
                     <label class="form-label">Contraseña</label>
-                    <input name="pass" type="password"
-                           class="form-control mb-3" required>
+                    <input name="pass"
+                           type="password"
+                           class="form-control mb-3"
+                           required>
 
                     <button class="btn btn-creative w-100">
                         Entrar al panel
                     </button>
-
                 </form>
-
             </div>
         </div>
     </div>
     """
 
-    return mostrar_pagina(contenido)
+    return render_template_string(
+        HTML_LAYOUT.replace(
+            "{% block content %}{% endblock %}", contenido
+        )
+    )
 
 
 @app.route("/admin")
@@ -684,14 +779,18 @@ def admin():
 
     fichas_query = conn.execute("""
         SELECT ficha,
-            SUM(CASE
-                WHEN estado_rendimiento = 'Buen Rendimiento'
-                THEN 1 ELSE 0
-            END) AS buen,
-            SUM(CASE
-                WHEN estado_rendimiento = 'Bajo Rendimiento'
-                THEN 1 ELSE 0
-            END) AS bajo
+            SUM(
+                CASE
+                    WHEN estado_rendimiento = 'Buen Rendimiento'
+                    THEN 1 ELSE 0
+                END
+            ) AS buen,
+            SUM(
+                CASE
+                    WHEN estado_rendimiento = 'Bajo Rendimiento'
+                    THEN 1 ELSE 0
+                END
+            ) AS bajo
         FROM estudiantes
         GROUP BY ficha
         ORDER BY ficha
@@ -705,17 +804,16 @@ def admin():
 
     conn.close()
 
-    total = len(estudiantes)
-
-    total_buen = sum(r["buen"] or 0 for r in fichas_query)
-    total_bajo = sum(r["bajo"] or 0 for r in fichas_query)
-
     labels_fichas = [r["ficha"] for r in fichas_query]
-    datos_buen = [r["buen"] or 0 for r in fichas_query]
-    datos_bajo = [r["bajo"] or 0 for r in fichas_query]
+    datos_buen = [r["buen"] for r in fichas_query]
+    datos_bajo = [r["bajo"] for r in fichas_query]
 
     labels_motivos = [r["motivo"] for r in motivos_query]
     datos_motivos = [r["cantidad"] for r in motivos_query]
+
+    total = len(estudiantes)
+    total_buen = sum(datos_buen)
+    total_bajo = sum(datos_bajo)
 
     filas = ""
 
@@ -730,25 +828,35 @@ def admin():
 
         filas += f"""
         <tr>
-            <td>{escape(str(e["nombre"]))}</td>
-            <td>{escape(str(e["documento"]))}</td>
-            <td>{escape(str(e["ficha"]))}</td>
+            <td>{escape(str(e['nombre']))}</td>
+            <td>{escape(str(e['documento']))}</td>
+            <td>
+                <span class="badge bg-secondary">
+                    {escape(str(e['ficha']))}
+                </span>
+            </td>
             <td>
                 <span class="badge {badge}">
                     {escape(estado)}
                 </span>
             </td>
-            <td>{escape(str(e["motivo"] or ""))}</td>
-            <td>{escape(str(e["horas_estudio"] or ""))}</td>
+            <td>{escape(str(e['motivo']))}</td>
+            <td>{escape(str(e['horas_estudio']))}</td>
             <td class="text-center">
-                {e["materias_reprobadas"] or 0}
+                {e['materias_reprobadas']}
             </td>
         </tr>
         """
 
     colores = [
-        "#39a900", "#ffc107", "#dc3545", "#0dcaf0",
-        "#6f42c1", "#fd7e14", "#20c997", "#6610f2"
+        "#39a900",
+        "#ffc107",
+        "#dc3545",
+        "#0dcaf0",
+        "#6f42c1",
+        "#fd7e14",
+        "#20c997",
+        "#6610f2"
     ]
 
     json_fichas = json.dumps(labels_fichas, ensure_ascii=False)
@@ -763,7 +871,6 @@ def admin():
 
         <div class="d-flex flex-wrap justify-content-between
                     align-items-center mb-4">
-
             <div>
                 <h2 class="fw-bold">
                     <i class="bi bi-speedometer2 text-success"></i>
@@ -780,23 +887,22 @@ def admin():
                 <i class="bi bi-printer"></i>
                 Imprimir informe
             </button>
-
         </div>
 
         <div class="row g-4 mb-4">
 
             <div class="col-md-4">
-                <div class="card card-creative p-4 kpi-card">
+                <div class="card card-creative p-4 kpi-card border-primary">
                     <small class="text-muted fw-bold">
                         TOTAL DE REGISTROS
                     </small>
                     <h2 class="display-5 fw-bold">{total}</h2>
-                    <span class="text-primary">Registros guardados</span>
+                    <span class="text-primary">Registrados</span>
                 </div>
             </div>
 
             <div class="col-md-4">
-                <div class="card card-creative p-4 kpi-card">
+                <div class="card card-creative p-4 kpi-card border-success">
                     <small class="text-muted fw-bold">
                         BUEN RENDIMIENTO
                     </small>
@@ -808,14 +914,14 @@ def admin():
             </div>
 
             <div class="col-md-4">
-                <div class="card card-creative p-4 kpi-card">
+                <div class="card card-creative p-4 kpi-card border-danger">
                     <small class="text-muted fw-bold">
                         BAJO RENDIMIENTO
                     </small>
                     <h2 class="display-5 fw-bold text-danger">
                         {total_bajo}
                     </h2>
-                    <span class="text-danger">Requieren atención</span>
+                    <span class="text-danger">En riesgo académico</span>
                 </div>
             </div>
 
@@ -825,7 +931,10 @@ def admin():
 
             <div class="col-lg-7">
                 <div class="card card-creative p-4 h-100">
-                    <h5 class="fw-bold">Rendimiento por ficha</h5>
+                    <h5 class="fw-bold">
+                        Rendimiento por ficha
+                    </h5>
+
                     <div style="height:320px">
                         <canvas id="fichasChart"></canvas>
                     </div>
@@ -834,7 +943,10 @@ def admin():
 
             <div class="col-lg-5">
                 <div class="card card-creative p-4 h-100">
-                    <h5 class="fw-bold">Causas registradas</h5>
+                    <h5 class="fw-bold">
+                        Causas registradas
+                    </h5>
+
                     <div style="height:320px">
                         <canvas id="motivosChart"></canvas>
                     </div>
@@ -847,18 +959,17 @@ def admin():
 
             <div class="d-flex flex-wrap justify-content-between
                         align-items-center mb-3">
-
                 <h5 class="fw-bold mb-0">
                     <i class="bi bi-table"></i>
                     Estudiantes registrados
                 </h5>
 
-                <span class="badge bg-success">{total} registros</span>
-
+                <span class="badge bg-success">
+                    {total} registros
+                </span>
             </div>
 
             <div class="table-responsive">
-
                 <table class="table table-hover align-middle">
 
                     <thead class="table-dark">
@@ -878,18 +989,12 @@ def admin():
                     </tbody>
 
                 </table>
-
             </div>
 
-            <a href="/registro" class="btn btn-creative no-print">
+            <a href="/registro"
+               class="btn btn-creative no-print">
                 <i class="bi bi-plus-circle"></i>
                 Registrar otra respuesta
-            </a>
-
-            <a href="/proyecto"
-               class="btn btn-outline-success mt-2 no-print">
-                <i class="bi bi-people-fill"></i>
-                Ver nuestro proyecto
             </a>
 
         </div>
@@ -906,8 +1011,10 @@ def admin():
 
         new Chart(document.getElementById("fichasChart"), {{
             type: "bar",
+
             data: {{
                 labels: labelsFichas,
+
                 datasets: [
                     {{
                         label: "Buen rendimiento",
@@ -923,13 +1030,17 @@ def admin():
                     }}
                 ]
             }},
+
             options: {{
                 responsive: true,
                 maintainAspectRatio: false,
+
                 scales: {{
                     y: {{
                         beginAtZero: true,
-                        ticks: {{ stepSize: 1 }}
+                        ticks: {{
+                            stepSize: 1
+                        }}
                     }}
                 }}
             }}
@@ -937,28 +1048,40 @@ def admin():
 
         new Chart(document.getElementById("motivosChart"), {{
             type: "doughnut",
+
             data: {{
                 labels: labelsMotivos,
+
                 datasets: [{{
                     data: datosMotivos,
+
                     backgroundColor: labelsMotivos.map(
                         (_, i) => colores[i % colores.length]
                     ),
+
                     borderWidth: 2
                 }}]
             }},
+
             options: {{
                 responsive: true,
                 maintainAspectRatio: false,
+
                 plugins: {{
-                    legend: {{ position: "bottom" }}
+                    legend: {{
+                        position: "bottom"
+                    }}
                 }}
             }}
         }});
     </script>
     """
 
-    return mostrar_pagina(contenido)
+    return render_template_string(
+        HTML_LAYOUT.replace(
+            "{% block content %}{% endblock %}", contenido
+        )
+    )
 
 
 if __name__ == "__main__":
