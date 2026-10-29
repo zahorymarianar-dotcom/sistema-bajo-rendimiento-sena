@@ -315,7 +315,7 @@ def proyecto():
 
         <section class="proyecto-hero mb-4">
 
-            <img src="/static/logo.png"
+            <img src="/static/colegio.png"
                  alt="Escudo del Colegio Integrado Camilo Torres"
                  class="logo-colegio">
 
@@ -375,8 +375,8 @@ def proyecto():
                 <div class="col-md-6">
                     <div class="proyecto-card text-center">
 
-                        <img src="/static/zahory.png"
-                             alt="Fotografía de Zahory Mariana Rueda Bueno"
+                        <img src="/static/yopis.png"
+                             alt="Fotografía original de Zahory Mariana Rueda Bueno"
                              class="foto-integrante">
 
                         <h4 class="titulo-verde">
@@ -406,8 +406,8 @@ def proyecto():
                 <div class="col-md-6">
                     <div class="proyecto-card text-center">
 
-                        <img src="/static/elias.png"
-                             alt="Fotografía de Elías Josué Peña Ballena"
+                        <img src="/static/pe%C3%B1a.png"
+                             alt="Fotografía original de Elías Josué Peña Ballena"
                              class="foto-integrante">
 
                         <h4 class="titulo-verde">
@@ -964,4 +964,3 @@ def admin():
 
 if __name__ == "__main__":
     app.run(debug=True)
-
