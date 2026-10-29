@@ -1,25 +1,17 @@
-
 from flask import Flask, request, redirect, url_for, render_template_string
 import sqlite3
-import json
-from html import escape
 
 app = Flask(__name__)
-app.secret_key = "sena_colcato_gaes5_secret"
-
-DATABASE = "database.db"
-
+app.secret_key = 'sena_colcato_gaes5_secret'
 
 def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def init_db():
     conn = get_db_connection()
-
-    conn.execute("""
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS estudiantes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
@@ -29,109 +21,44 @@ def init_db():
             motivo TEXT NOT NULL,
             horas_estudio TEXT DEFAULT '1-3 horas',
             materias_reprobadas INTEGER DEFAULT 1,
-            origen TEXT DEFAULT 'Simulado',
             fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    ''')
+    
+    try:
+        conn.execute("ALTER TABLE estudiantes ADD COLUMN estado_rendimiento TEXT DEFAULT 'Bajo Rendimiento'")
+    except sqlite3.OperationalError:
+        pass
 
-    columnas = [
-        ("estado_rendimiento", "TEXT DEFAULT 'Bajo Rendimiento'"),
-        ("horas_estudio", "TEXT DEFAULT '1-3 horas'"),
-        ("materias_reprobadas", "INTEGER DEFAULT 1"),
-        ("origen", "TEXT DEFAULT 'Simulado'")
-    ]
+    try:
+        conn.execute("ALTER TABLE estudiantes ADD COLUMN horas_estudio TEXT DEFAULT '1-3 horas'")
+    except sqlite3.OperationalError:
+        pass
+        
+    try:
+        conn.execute("ALTER TABLE estudiantes ADD COLUMN materias_reprobadas INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
 
-    for nombre_columna, tipo in columnas:
-        try:
-            conn.execute(
-                f"ALTER TABLE estudiantes ADD COLUMN {nombre_columna} {tipo}"
-            )
-        except sqlite3.OperationalError:
-            pass
-
-    total = conn.execute(
-        "SELECT COUNT(*) FROM estudiantes"
-    ).fetchone()[0]
-
-    faltan = max(0, 66 - total)
-
-    nombres = [
-        "Sara", "Valentina", "Sofia", "Camila", "Isabella",
-        "Mariana", "Laura", "Daniela", "Gabriela", "Natalia",
-        "Juliana", "Paula", "Andrea", "Manuela", "Luciana",
-        "Alejandra", "Daniel", "Samuel", "Mateo", "Sebastian",
-        "Nicolas", "Juan", "David"
-    ]
-
-    apellidos = [
-        "Perez", "Acevedo", "Rodriguez", "Gomez", "Rojas",
-        "Martinez", "Torres", "Ramirez", "Castro", "Mendoza",
-        "Moreno", "Garcia", "Vargas", "Lopez", "Suarez"
-    ]
-
-    motivos = [
-        "Falta de Hábitos de Estudio",
-        "Ninguno / Excelente Desempeño",
-        "Afectación Emocional / Personal",
-        "Incidencia Docente / Metodología",
-        "Dificultad Técnica / Herramientas"
-    ]
-
-    horas_opciones = [
-        "0-1 horas", "1-3 horas", "3-5 horas", "+5 horas"
-    ]
-
-    datos = []
-
-    for i in range(faltan):
-        nombre = (
-            f"{nombres[i % len(nombres)]} "
-            f"{apellidos[(i // len(nombres)) % len(apellidos)]}"
-        )
-
-        buen_rendimiento = i % 3 != 1
-
-        if buen_rendimiento:
-            estado = "Buen Rendimiento"
-            motivo = "Ninguno / Excelente Desempeño"
-            materias = 0
-        else:
-            estado = "Bajo Rendimiento"
-            motivo = motivos[i % len(motivos)]
-
-            if motivo == "Ninguno / Excelente Desempeño":
-                motivo = "Falta de Hábitos de Estudio"
-
-            materias = (i % 4) + 1
-
-        ficha = "3157141" if i % 2 == 0 else "2891234"
-        horas = horas_opciones[i % len(horas_opciones)]
-
-        datos.append((
-            nombre,
-            f"SIM-TI-{i + 1:04d}",
-            ficha,
-            estado,
-            motivo,
-            horas,
-            materias,
-            "Simulado"
-        ))
-
-    if datos:
-        conn.executemany("""
-            INSERT INTO estudiantes
-            (nombre, documento, ficha, estado_rendimiento,
-             motivo, horas_estudio, materias_reprobadas, origen)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, datos)
+    cursor = conn.execute("SELECT COUNT(*) FROM estudiantes")
+    if cursor.fetchone()[0] == 0:
+        datos_semilla = [
+            ('Carlos Eduardo Ruiz', '1012345678', '3157141', 'Bajo Rendimiento', 'Falta de Hábitos de Estudio', '0-1 horas', 3),
+            ('Laura Daniela Gómez', '1023456789', '3157141', 'Buen Rendimiento', 'Ninguno / Excelente Desempeño', '+5 horas', 0),
+            ('Andrés Felipe López', '1034567890', '3157141', 'Bajo Rendimiento', 'Afectación Emocional / Personal', '3-5 horas', 1),
+            ('Sofia Valentina Torres', '1045678901', '2891234', 'Buen Rendimiento', 'Ninguno / Excelente Desempeño', '+5 horas', 0),
+            ('Mateo Alejandro Ramírez', '1056789012', '2891234', 'Bajo Rendimiento', 'Falta de Hábitos de Estudio', '0-1 horas', 4),
+            ('Camila Andrea Camacho', '1098722621', '3157141', 'Buen Rendimiento', 'Ninguno / Excelente Desempeño', '3-5 horas', 0)
+        ]
+        conn.executemany('''
+            INSERT INTO estudiantes (nombre, documento, ficha, estado_rendimiento, motivo, horas_estudio, materias_reprobadas)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', datos_semilla)
 
     conn.commit()
     conn.close()
 
-
 init_db()
-
 
 HTML_LAYOUT = """
 <!DOCTYPE html>
@@ -139,728 +66,272 @@ HTML_LAYOUT = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Diagnóstico de Rendimiento Académico</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-          rel="stylesheet">
-
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-
+    <title>SENA & Colcato - Diagnóstico de Rendimiento Académico</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <style>
         :root {
             --sena-green: #39a900;
             --sena-dark: #00324d;
             --sena-accent: #00843d;
         }
-
         body {
             background: #f0f4f8;
-            font-family: system-ui, sans-serif;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
             color: #1e293b;
         }
-
         .navbar-custom {
-            background: linear-gradient(135deg, #00324d, #001f31);
-            box-shadow: 0 4px 20px rgba(0,0,0,.15);
+            background: linear-gradient(135deg, var(--sena-dark) 0%, #001f31 100%);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
-
         .hero-card {
-            background: linear-gradient(
-                135deg,
-                rgba(57,169,0,.08),
-                rgba(0,50,77,.05)
-            );
-            border: 1px solid rgba(57,169,0,.2);
+            background: linear-gradient(135deg, rgba(57, 169, 0, 0.08) 0%, rgba(0, 50, 77, 0.05) 100%);
+            border: 1px solid rgba(57, 169, 0, 0.2);
             border-radius: 20px;
         }
-
         .card-creative {
             border: none;
             border-radius: 18px;
-            box-shadow: 0 10px 30px rgba(0,0,0,.05);
-            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            background: #ffffff;
         }
-
         .card-creative:hover {
-            box-shadow: 0 12px 32px rgba(0,0,0,.08);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.08);
         }
-
         .badge-sena {
             background: var(--sena-green);
             color: white;
+            font-weight: 600;
             padding: 6px 14px;
             border-radius: 50px;
         }
-
         .btn-creative {
-            background: linear-gradient(135deg, #39a900, #00843d);
+            background: linear-gradient(135deg, var(--sena-green) 0%, var(--sena-accent) 100%);
             color: white;
             border: none;
             border-radius: 12px;
-            padding: 12px 24px;
-            font-weight: bold;
+            padding: 12px 28px;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(57, 169, 0, 0.3);
+            transition: all 0.3s ease;
         }
-
         .btn-creative:hover {
-            background: #00843d;
             color: white;
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(57, 169, 0, 0.4);
         }
-
         .kpi-card {
             border-left: 5px solid var(--sena-green);
         }
-
-        @media print {
-            nav, .no-print, footer {
-                display: none !important;
-            }
+        .table-custom {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .team-img {
+            width: 130px;
+            height: 130px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 4px solid var(--sena-green);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
         }
     </style>
 </head>
-
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark navbar-custom py-3">
-    <div class="container">
-        <a class="navbar-brand fw-bold" href="/">
-            <i class="bi bi-building-fill-gear text-warning"></i>
-            Colegio Integrado Camilo Torres | SENA GAES 5
-        </a>
-
-        <div class="navbar-nav ms-auto">
-            <a class="nav-link text-white" href="/">Inicio</a>
-            <a class="nav-link text-white" href="/registro">Encuesta</a>
-            <a class="btn btn-warning fw-bold" href="/login">Panel Docente</a>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom py-3 sticky-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2 font-monospace fw-bold fs-5" href="/">
+                <i class="bi bi-building-fill-gear text-warning fs-4"></i>
+                <span>Colegio Integrado Camilo Torres <span class="text-success">|</span> SENA GAES 5</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link text-white fw-semibold px-3" href="/"><i class="bi bi-house-door me-1"></i> Inicio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white fw-semibold px-3" href="/registro"><i class="bi bi-clipboard2-check me-1"></i> Encuesta Estudiantil</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-warning text-dark fw-bold px-4 ms-lg-3 rounded-pill" href="/login">
+                            <i class="bi bi-person-workspace me-1"></i> Panel Docente
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
+    </nav>
+
+    <div class="container my-5">
+        {% block content %}{% endblock %}
     </div>
-</nav>
 
-<div class="container my-5">
-    {% block content %}{% endblock %}
-</div>
+    <footer class="text-center py-4 text-muted border-top mt-5 bg-white">
+        <small>© 2026 Colegio Integrado Camilo Torres (San Vicente de Chucurí) & SENA GAES 5</small>
+    </footer>
 
-<footer class="text-center py-4 text-muted border-top bg-white">
-    <small>© 2026 Colegio Integrado Camilo Torres | SENA GAES 5</small>
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 """
 
-
-@app.route("/")
+@app.route('/')
 def index():
-    contenido = """
-    <div class="row justify-content-center animate__animated animate__fadeIn">
-        <div class="col-lg-10">
-            <div class="hero-card p-5 text-center shadow-sm">
-
-                <span class="badge-sena">
-                    San Vicente de Chucurí
-                </span>
-
-                <h1 class="display-5 fw-bold mt-3">
-                    Diagnóstico y Comparativo de Rendimiento Académico
-                </h1>
-
-                <h4 class="text-success fw-bold mb-4">
-                    Colegio Integrado Camilo Torres
-                </h4>
-
-                <p class="lead text-secondary">
-                    Plataforma para analizar el rendimiento académico,
-                    los hábitos de estudio y las causas relacionadas
-                    con las dificultades escolares.
-                </p>
-
-                <div class="row g-4 my-4">
-                    <div class="col-md-4">
-                        <div class="card card-creative p-4 h-100">
-                            <i class="bi bi-journal-text text-success fs-1"></i>
-                            <h5 class="fw-bold mt-2">Encuesta</h5>
-                            <p>Registro de información académica.</p>
+    html = HTML_LAYOUT.replace('{% block content %}{% endblock %}', '''
+        <div class="row justify-content-center align-items-center min-vh-75 animate__animated animate__fadeIn">
+            <div class="col-lg-10">
+                <div class="hero-card p-5 text-center shadow-lg mb-5">
+                    <span class="badge badge-sena mb-3"><i class="bi bi-geo-alt-fill me-1"></i> San Vicente de Chucurí</span>
+                    <h1 class="display-5 fw-black text-dark mb-3">Diagnóstico y Comparativo de Rendimiento Académico</h1>
+                    <h4 class="text-success fw-bold mb-4">Colegio Integrado Camilo Torres</h4>
+                    <p class="lead text-secondary mb-4 mx-auto style='max-width: 750px;'">
+                        Plataforma interactiva para evaluar el desempeño académico por fichas de formación, generando comparativos entre estudiantes de <strong>Buen Rendimiento</strong> y <strong>Bajo Rendimiento</strong>.
+                    </p>
+                    <div class="row g-4 my-4">
+                        <div class="col-md-4">
+                            <div class="card card-creative p-4 h-100">
+                                <i class="bi bi-journal-text text-success fs-1 mb-2"></i>
+                                <h5 class="fw-bold">Encuesta de Diagnóstico</h5>
+                                <p class="text-muted small mb-0">Captura de estado académico, hábitos y causales por aprendiz.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card card-creative p-4 h-100">
+                                <i class="bi bi-bar-chart-steps text-warning fs-1 mb-2"></i>
+                                <h5 class="fw-bold">Gráficas por Ficha</h5>
+                                <p class="text-muted small mb-0">Comparativa directa de aprendices con buen vs. bajo rendimiento por ficha.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card card-creative p-4 h-100">
+                                <i class="bi bi-shield-exclamation text-danger fs-1 mb-2"></i>
+                                <h5 class="fw-bold">Alertas Tempranas</h5>
+                                <p class="text-muted small mb-0">Identificación inmediata de fichas con alto índice de vulnerabilidad.</p>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="col-md-4">
-                        <div class="card card-creative p-4 h-100">
-                            <i class="bi bi-bar-chart text-warning fs-1"></i>
-                            <h5 class="fw-bold mt-2">Gráficas</h5>
-                            <p>Comparación de los resultados registrados.</p>
-                        </div>
+                    <div class="d-flex justify-content-center gap-3 mt-4">
+                        <a href="/registro" class="btn btn-creative btn-lg"><i class="bi bi-pencil-square me-2"></i> Diligenciar Encuesta</a>
+                        <a href="/login" class="btn btn-outline-dark btn-lg rounded-3 fw-bold px-4"><i class="bi bi-speedometer2 me-2"></i> Panel de Control</a>
                     </div>
+                </div>
 
-                    <div class="col-md-4">
-                        <div class="card card-creative p-4 h-100">
-                            <i class="bi bi-clipboard-data text-danger fs-1"></i>
-                            <h5 class="fw-bold mt-2">Diagnóstico</h5>
-                            <p>Consulta de los datos del sistema.</p>
+                <!-- APARTADO EXPLICATIVO DEL PROYECTO Y EQUIPO (GAES 5 & COLEGIO) -->
+                <div class="card card-creative p-5 shadow-sm border-start border-success border-4 mb-4">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <div class="bg-success text-white rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                    <i class="bi bi-info-circle-fill fs-5"></i>
+                                </div>
+                                <h3 class="fw-bold mb-0 text-dark">¿De qué trata nuestro proyecto?</h3>
+                            </div>
+                            <p class="text-secondary fs-6 mb-3">
+                                El <strong>Sistema de Diagnóstico del Bajo Rendimiento Académico</strong> es una solución tecnológica desarrollada por el <strong>SENA GAES 5</strong> en conjunto con el <strong>Colegio Integrado Camilo Torres</strong> (San Vicente de Chucurí). 
+                            </p>
+                            <p class="text-secondary fs-6 mb-3">
+                                <strong>Objetivo Principal:</strong> Identificar, recopilar y analizar los principales factores de riesgo que afectan el rendimiento escolar de los estudiantes (tales como la falta de hábitos de estudio, dificultades técnicas, o situaciones emocionales). 
+                            </p>
+                            <p class="text-secondary fs-6 mb-0">
+                                A través de esta plataforma web, los directivos y docentes pueden visualizar estadísticas en tiempo real y gráficas comparativas para implementar estrategias de apoyo oportunas.
+                            </p>
+                        </div>
+                        <div class="col-lg-4 text-center mt-4 mt-lg-0">
+                            <div class="p-3 bg-light rounded-4 border">
+                                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-patch-check-fill text-success me-1"></i> Identidad Institucional</h6>
+                                <!-- Aquí puedes cambiar 'logo.png' por el nombre del archivo de tu escudo en GitHub -->
+                                <img src="https://i.ibb.co/3yk56C0/escudo-camilo.png" alt="Escudo Colegio Camilo Torres" class="img-fluid mb-3" style="max-height: 90px;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135755.png'">
+                                <p class="text-muted small mb-0 fw-semibold">Desarrollado por GAES 5<br>Colegio Integrado Camilo Torres</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <a href="/registro" class="btn btn-creative btn-lg m-2">
-                    <i class="bi bi-pencil-square"></i>
-                    Diligenciar encuesta
-                </a>
-
-                <a href="/login" class="btn btn-outline-dark btn-lg m-2">
-                    <i class="bi bi-speedometer2"></i>
-                    Panel docente
-                </a>
             </div>
         </div>
-    </div>
-    """
+    ''')
+    return render_template_string(html)
 
-    return render_template_string(
-        HTML_LAYOUT.replace(
-            "{% block content %}{% endblock %}", contenido
-        )
-    )
-
-
-@app.route("/registro", methods=["GET", "POST"])
+@app.route('/registro', methods=['GET', 'POST'])
 def registro():
-    if request.method == "POST":
-        nombre = request.form.get("nombre", "").strip()
-        documento = request.form.get("documento", "").strip()
-        ficha = request.form.get("ficha", "").strip()
-        estado = request.form.get("estado_rendimiento", "")
-        motivo = request.form.get("motivo", "")
-        horas = request.form.get("horas", "")
-
-        try:
-            materias = int(request.form.get("materias", "0"))
-        except ValueError:
-            materias = 0
-
-        if not nombre or not documento or not ficha:
-            return "Completa el nombre, documento y ficha.", 400
-
-        if estado not in ["Buen Rendimiento", "Bajo Rendimiento"]:
-            return "Selecciona un estado de rendimiento válido.", 400
-
-        if materias < 0 or materias > 15:
-            return "El número de materias debe estar entre 0 y 15.", 400
+    if request.method == 'POST':
+        nombre = request.form.get('nombre', 'Anónimo')
+        documento = request.form.get('documento', '0000')
+        ficha = request.form.get('ficha', '3157141')
+        estado_rendimiento = request.form.get('estado_rendimiento', 'Bajo Rendimiento')
+        motivo = request.form.get('motivo', 'Falta de Hábitos de Estudio')
+        horas = request.form.get('horas', '1-3 horas')
+        materias = int(request.form.get('materias', 0))
 
         conn = get_db_connection()
-
-        conn.execute("""
-            INSERT INTO estudiantes
-            (nombre, documento, ficha, estado_rendimiento,
-             motivo, horas_estudio, materias_reprobadas, origen)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Real')
-        """, (
-            nombre,
-            documento,
-            ficha,
-            estado,
-            motivo,
-            horas,
-            materias
-        ))
-
+        conn.execute('''
+            INSERT INTO estudiantes (nombre, documento, ficha, estado_rendimiento, motivo, horas_estudio, materias_reprobadas) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (nombre, documento, ficha, estado_rendimiento, motivo, horas, materias))
         conn.commit()
         conn.close()
 
-        return redirect(url_for("admin"))
+        return redirect(url_for('admin'))
 
-    contenido = """
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card card-creative p-4 p-md-5">
-
-                <h2 class="fw-bold mb-2">
-                    <i class="bi bi-card-checklist text-success"></i>
-                    Encuesta de Rendimiento Académico
-                </h2>
-
-                <p class="text-muted">
-                    Colegio Integrado Camilo Torres
-                </p>
-
-                <form method="POST">
-                    <div class="row g-3">
-
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">
-                                Nombre completo
-                            </label>
-                            <input name="nombre"
-                                   class="form-control"
-                                   required maxlength="100">
+    html = HTML_LAYOUT.replace('{% block content %}{% endblock %}', '''
+        <div class="row justify-content-center animate__animated animate__fadeInUp">
+            <div class="col-lg-8">
+                <div class="card card-creative p-5">
+                    <div class="d-flex align-items-center gap-3 mb-4 border-bottom pb-3">
+                        <div class="bg-success text-white rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                            <i class="bi bi-card-checklist fs-4"></i>
                         </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">
-                                Documento de identidad
-                            </label>
-                            <input name="documento"
-                                   class="form-control"
-                                   required maxlength="30">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">
-                                Ficha / Grupo
-                            </label>
-                            <input name="ficha"
-                                   class="form-control"
-                                   value="3157141"
-                                   required maxlength="30">
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">
-                                Rendimiento académico
-                            </label>
-                            <select name="estado_rendimiento"
-                                    class="form-select" required>
-                                <option value="Buen Rendimiento">
-                                    Buen Rendimiento
-                                </option>
-                                <option value="Bajo Rendimiento" selected>
-                                    Bajo Rendimiento
-                                </option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">
-                                Horas de estudio semanales
-                            </label>
-                            <select name="horas"
-                                    class="form-select" required>
-                                <option>0-1 horas</option>
-                                <option selected>1-3 horas</option>
-                                <option>3-5 horas</option>
-                                <option>+5 horas</option>
-                            </select>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">
-                                Materias reprobadas
-                            </label>
-                            <input type="number"
-                                   name="materias"
-                                   class="form-control"
-                                   min="0" max="15"
-                                   value="1" required>
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label fw-bold">
-                                Causa u observación
-                            </label>
-                            <select name="motivo"
-                                    class="form-select" required>
-                                <option value="Falta de Hábitos de Estudio">
-                                    Falta de hábitos de estudio
-                                </option>
-                                <option value="Ninguno / Excelente Desempeño">
-                                    Ninguno / Excelente desempeño
-                                </option>
-                                <option value="Afectación Emocional / Personal">
-                                    Afectación emocional o personal
-                                </option>
-                                <option value="Incidencia Docente / Metodología">
-                                    Metodología de enseñanza
-                                </option>
-                                <option value="Dificultad Técnica / Herramientas">
-                                    Dificultad técnica o herramientas digitales
-                                </option>
-                            </select>
+                        <div>
+                            <h3 class="fw-bold mb-0">Encuesta de Rendimiento Académico</h3>
+                            <small class="text-muted">Colegio Integrado Camilo Torres - San Vicente de Chucurí</small>
                         </div>
                     </div>
-
-                    <button class="btn btn-creative w-100 mt-4" type="submit">
-                        <i class="bi bi-send-check"></i>
-                        Registrar diagnóstico
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-    """
-
-    return render_template_string(
-        HTML_LAYOUT.replace(
-            "{% block content %}{% endblock %}", contenido
-        )
-    )
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    # Acceso demostrativo: no constituye autenticación segura.
-    if request.method == "POST":
-        return redirect(url_for("admin"))
-
-    contenido = """
-    <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card card-creative p-5 text-center">
-
-                <i class="bi bi-shield-lock-fill text-success"
-                   style="font-size:3rem"></i>
-
-                <h3 class="fw-bold mt-3">Panel Docente</h3>
-
-                <p class="text-muted">
-                    Acceso de demostración para consultar los resultados.
-                </p>
-
-                <form method="POST">
-                    <label class="form-label">Usuario</label>
-                    <input name="user"
-                           class="form-control mb-3"
-                           value="admin" required>
-
-                    <label class="form-label">Contraseña</label>
-                    <input name="pass"
-                           type="password"
-                           class="form-control mb-3"
-                           required>
-
-                    <button class="btn btn-creative w-100">
-                        Entrar al panel
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-    """
-
-    return render_template_string(
-        HTML_LAYOUT.replace(
-            "{% block content %}{% endblock %}", contenido
-        )
-    )
-
-
-@app.route("/admin")
-def admin():
-    conn = get_db_connection()
-
-    estudiantes = conn.execute("""
-        SELECT * FROM estudiantes ORDER BY id DESC
-    """).fetchall()
-
-    fichas_query = conn.execute("""
-        SELECT ficha,
-            SUM(
-                CASE
-                    WHEN estado_rendimiento = 'Buen Rendimiento'
-                    THEN 1 ELSE 0
-                END
-            ) AS buen,
-            SUM(
-                CASE
-                    WHEN estado_rendimiento = 'Bajo Rendimiento'
-                    THEN 1 ELSE 0
-                END
-            ) AS bajo
-        FROM estudiantes
-        GROUP BY ficha
-        ORDER BY ficha
-    """).fetchall()
-
-    motivos_query = conn.execute("""
-        SELECT motivo, COUNT(*) AS cantidad
-        FROM estudiantes
-        GROUP BY motivo
-    """).fetchall()
-
-    conn.close()
-
-    labels_fichas = [r["ficha"] for r in fichas_query]
-    datos_buen = [r["buen"] for r in fichas_query]
-    datos_bajo = [r["bajo"] for r in fichas_query]
-
-    labels_motivos = [r["motivo"] for r in motivos_query]
-    datos_motivos = [r["cantidad"] for r in motivos_query]
-
-    total = len(estudiantes)
-    total_buen = sum(datos_buen)
-    total_bajo = sum(datos_bajo)
-
-    filas = ""
-
-    for e in estudiantes:
-        estado = e["estado_rendimiento"] or "Bajo Rendimiento"
-
-        badge = (
-            "bg-success"
-            if estado == "Buen Rendimiento"
-            else "bg-danger"
-        )
-
-        filas += f"""
-        <tr>
-            <td>{escape(str(e['nombre']))}</td>
-            <td>{escape(str(e['documento']))}</td>
-            <td>
-                <span class="badge bg-secondary">
-                    {escape(str(e['ficha']))}
-                </span>
-            </td>
-            <td>
-                <span class="badge {badge}">
-                    {escape(estado)}
-                </span>
-            </td>
-            <td>{escape(str(e['motivo']))}</td>
-            <td>{escape(str(e['horas_estudio']))}</td>
-            <td class="text-center">
-                {e['materias_reprobadas']}
-            </td>
-        </tr>
-        """
-
-    colores = [
-        "#39a900",
-        "#ffc107",
-        "#dc3545",
-        "#0dcaf0",
-        "#6f42c1",
-        "#fd7e14",
-        "#20c997",
-        "#6610f2"
-    ]
-
-    json_fichas = json.dumps(labels_fichas, ensure_ascii=False)
-    json_buen = json.dumps(datos_buen)
-    json_bajo = json.dumps(datos_bajo)
-    json_motivos = json.dumps(labels_motivos, ensure_ascii=False)
-    json_cantidades = json.dumps(datos_motivos)
-    json_colores = json.dumps(colores)
-
-    contenido = f"""
-    <div class="animate__animated animate__fadeIn">
-
-        <div class="d-flex flex-wrap justify-content-between
-                    align-items-center mb-4">
-            <div>
-                <h2 class="fw-bold">
-                    <i class="bi bi-speedometer2 text-success"></i>
-                    Panel de Rendimiento Académico
-                </h2>
-
-                <p class="text-muted">
-                    Colegio Integrado Camilo Torres - SENA GAES 5
-                </p>
-            </div>
-
-            <button onclick="window.print()"
-                    class="btn btn-outline-dark no-print">
-                <i class="bi bi-printer"></i>
-                Imprimir informe
-            </button>
-        </div>
-
-        <div class="row g-4 mb-4">
-
-            <div class="col-md-4">
-                <div class="card card-creative p-4 kpi-card border-primary">
-                    <small class="text-muted fw-bold">
-                        TOTAL DE REGISTROS
-                    </small>
-                    <h2 class="display-5 fw-bold">{total}</h2>
-                    <span class="text-primary">Registrados</span>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card card-creative p-4 kpi-card border-success">
-                    <small class="text-muted fw-bold">
-                        BUEN RENDIMIENTO
-                    </small>
-                    <h2 class="display-5 fw-bold text-success">
-                        {total_buen}
-                    </h2>
-                    <span class="text-success">Buen desempeño</span>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card card-creative p-4 kpi-card border-danger">
-                    <small class="text-muted fw-bold">
-                        BAJO RENDIMIENTO
-                    </small>
-                    <h2 class="display-5 fw-bold text-danger">
-                        {total_bajo}
-                    </h2>
-                    <span class="text-danger">En riesgo académico</span>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="row g-4 mb-4">
-
-            <div class="col-lg-7">
-                <div class="card card-creative p-4 h-100">
-                    <h5 class="fw-bold">
-                        Rendimiento por ficha
-                    </h5>
-
-                    <div style="height:320px">
-                        <canvas id="fichasChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-5">
-                <div class="card card-creative p-4 h-100">
-                    <h5 class="fw-bold">
-                        Causas registradas
-                    </h5>
-
-                    <div style="height:320px">
-                        <canvas id="motivosChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="card card-creative p-4">
-
-            <div class="d-flex flex-wrap justify-content-between
-                        align-items-center mb-3">
-                <h5 class="fw-bold mb-0">
-                    <i class="bi bi-table"></i>
-                    Estudiantes registrados
-                </h5>
-
-                <span class="badge bg-success">
-                    {total} registros
-                </span>
-            </div>
-
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Documento</th>
-                            <th>Ficha</th>
-                            <th>Rendimiento</th>
-                            <th>Causa</th>
-                            <th>Horas de estudio</th>
-                            <th>Reprobadas</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {filas}
-                    </tbody>
-
-                </table>
-            </div>
-
-            <a href="/registro"
-               class="btn btn-creative no-print">
-                <i class="bi bi-plus-circle"></i>
-                Registrar otra respuesta
-            </a>
-
-        </div>
-    </div>
-
-    <script>
-        const labelsFichas = {json_fichas};
-        const datosBuen = {json_buen};
-        const datosBajo = {json_bajo};
-
-        const labelsMotivos = {json_motivos};
-        const datosMotivos = {json_cantidades};
-        const colores = {json_colores};
-
-        new Chart(document.getElementById("fichasChart"), {{
-            type: "bar",
-
-            data: {{
-                labels: labelsFichas,
-
-                datasets: [
-                    {{
-                        label: "Buen rendimiento",
-                        data: datosBuen,
-                        backgroundColor: "#39a900",
-                        borderRadius: 6
-                    }},
-                    {{
-                        label: "Bajo rendimiento",
-                        data: datosBajo,
-                        backgroundColor: "#dc3545",
-                        borderRadius: 6
-                    }}
-                ]
-            }},
-
-            options: {{
-                responsive: true,
-                maintainAspectRatio: false,
-
-                scales: {{
-                    y: {{
-                        beginAtZero: true,
-                        ticks: {{
-                            stepSize: 1
-                        }}
-                    }}
-                }}
-            }}
-        }});
-
-        new Chart(document.getElementById("motivosChart"), {{
-            type: "doughnut",
-
-            data: {{
-                labels: labelsMotivos,
-
-                datasets: [{{
-                    data: datosMotivos,
-
-                    backgroundColor: labelsMotivos.map(
-                        (_, i) => colores[i % colores.length]
-                    ),
-
-                    borderWidth: 2
-                }}]
-            }},
-
-            options: {{
-                responsive: true,
-                maintainAspectRatio: false,
-
-                plugins: {{
-                    legend: {{
-                        position: "bottom"
-                    }}
-                }}
-            }}
-        }});
-    </script>
-    """
-
-    return render_template_string(
-        HTML_LAYOUT.replace(
-            "{% block content %}{% endblock %}", contenido
-        )
-    )
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-person me-1 text-success"></i> Nombre Completo del Estudiante</label>
+                                <input type="text" name="nombre" class="form-control form-control-lg rounded-3" required placeholder="Ej: María Camila Pérez">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-card-heading me-1 text-success"></i> Documento de Identidad</label>
+                                <input type="text" name="documento" class="form-control form-control-lg rounded-3" required placeholder="Ej: 1019823476">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-hash me-1 text-success"></i> Número de Ficha / Grupo</label>
+                                <input type="text" name="ficha" class="form-control form-control-lg rounded-3" value="3157141" required placeholder="Ingrese la ficha">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-bar-chart-line me-1 text-primary"></i> Estado de Rendimiento Académico</label>
+                                <select name="estado_rendimiento" class="form-select form-select-lg rounded-3" required>
+                                    <option value="Buen Rendimiento">Buen Rendimiento (Aprobando todas las materias)</option>
+                                    <option value="Bajo Rendimiento" selected>Bajo Rendimiento (Con materias/resultados en riesgo)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-clock-history me-1 text-success"></i> Horas de Estudio Autónomo (Semanal)</label>
+                                <select name="horas" class="form-select form-select-lg rounded-3" required>
+                                    <option value="0-1 horas">0 a 1 horas (Baja dedicación)</option>
+                                    <option value="1-3 horas" selected>1 a 3 horas (Dedicación media)</option>
+                                    <option value="3-5 horas">3 a 5 horas (Buena dedicación)</option>
+                                    <option value="+5 horas">Más de 5 horas (Excelente)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold"><i class="bi bi-x-circle me-1 text-danger"></i> Asignaturas Reprobadas</label>
+                                <input type="number" name="materias" class="form-control form-control-lg rounded-3" min="0" max="15" value="1" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold"><i class="bi bi-exclamation-triangle me-1 text-warning"></i> Causa Determinante u Observación</label>
+                                <select name="motivo" class="form-select form-select-lg rounded-3" required>
+                                    <option value="Ninguno / Excelente Desempeño">Ninguno / Buen Desempeño Académico</option>
+                                    <option value="Falta de Hábitos de Estudio">Falta de Hábitos de Estudio / Organización</option>
+                                    <option value="Incidencia Docente / Metodología">Incidencia Docente / Metodología de Enseñanza</option>
+                                    <option value="Afectación Emocional / Personal">Afectación Emocional / Situación Personal</option>
+                                    <option value="Dificultad Técnica / Herramientas">Dificultad Técnica / Her
